@@ -1,0 +1,33 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# --- Données locales (jamais dans le dépôt) ---
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+/data/
+/media/
+/staticfiles/
+/backups/
+
+# --- Secrets et configuration locale ---
+.env
+
+# --- Outils ---
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Éditeur : on ne partage que les réglages communs ---
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# --- Systèmes ---
+*.swp
+.DS_Store
+Thumbs.db

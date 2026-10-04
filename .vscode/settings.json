@@ -1,0 +1,31 @@
+{
+  // Fichiers : UTF-8, fins de ligne Linux, pas d'espaces parasites
+  "files.encoding": "utf8",
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "files.trimTrailingWhitespace": true,
+
+  // Python : Ruff vérifie et met en forme à l'enregistrement
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "explicit",
+      "source.organizeImports": "explicit"
+    }
+  },
+
+  // Markdown : deux espaces en fin de ligne = saut de ligne, on les garde
+  "[markdown]": {
+    "files.trimTrailingWhitespace": false
+  },
+
+  // Gabarits Django : coloration dédiée, complétion HTML conservée
+  "files.associations": {
+    "**/templates/**/*.html": "django-html"
+  },
+  "emmet.includeLanguages": {
+    "django-html": "html"
+  }
+}
