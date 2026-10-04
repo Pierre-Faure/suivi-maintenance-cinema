@@ -1,0 +1,18 @@
+# Développement uniquement : code monté, rechargement automatique, mode DEBUG.
+# La production aura son propre fichier (étape 9 du socle).
+
+services:
+  web:
+    build: .
+    # Serveur de développement de Django à la place de Gunicorn :
+    # il recharge le code à chaque modification.
+    command: python manage.py runserver 0.0.0.0:8000
+    environment:
+      DJANGO_DEBUG: "1"
+      # Même dossier data/ que le venv : une seule base de développement.
+      DJANGO_DATA_DIR: /app/data
+    volumes:
+      - .:/app
+    ports:
+      # Accessible depuis ton poste uniquement, pas depuis le réseau.
+      - "127.0.0.1:8000:8000"

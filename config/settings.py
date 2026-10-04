@@ -70,6 +70,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # WhiteNoise sert les fichiers statiques (CSS, JS) sans serveur web séparé.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     # Pas de LocaleMiddleware : l'interface est en français quelle que soit
     # la langue du navigateur (LANGUAGE_CODE ci-dessous).
@@ -154,6 +156,14 @@ USE_TZ = True  # stockage en UTC, affichage à l'heure de Paris
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"  # rempli par collectstatic (image Docker)
+
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    # Compression sans « manifest » : un fichier statique manquant ne peut pas
+    # faire planter une page. En contrepartie, le navigateur garde les fichiers
+    # en cache 60 s seulement, ce qui est sans importance sur un réseau local.
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
+}
 
 
 # --- Journaux -----------------------------------------------------------------
