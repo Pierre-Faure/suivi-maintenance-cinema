@@ -27,5 +27,7 @@
   },
   "emmet.includeLanguages": {
     "django-html": "html"
-  }
+  },
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  "terminal.integrated.env.windows": { "DJANGO_DEBUG": "1" }
 }

@@ -1,0 +1,16 @@
+[project]
+name = "suivi-affaires-cinema"
+version = "0.1.0"
+description = "Suivi des affaires du responsable technique et bâtiment — Cinéma"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    # Cadre web : authentification, migrations, formulaires. Branche LTS 5.2.
+    "django>=5.2.17,<5.3",
+    # Serveur web en pur Python, fonctionne sous Windows (Gunicorn non).
+    "waitress>=3",
+    # Sert les fichiers statiques (CSS) sans serveur web séparé.
+    "whitenoise>=6.12",
+    # Base des fuseaux horaires : absente de Windows, nécessaire pour Europe/Paris.
+    "tzdata",
+]

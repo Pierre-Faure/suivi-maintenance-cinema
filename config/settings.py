@@ -1,19 +1,19 @@
 """
-Réglages du projet « Suivi maintenance & prestataires — Cinéma ».
+Réglages du projet « Suivi des affaires — Cinéma ».
 
 Principes :
 - Tout ce qui varie d'une machine à l'autre vient de variables d'environnement
   (préfixe DJANGO_), sans dépendance supplémentaire.
 - Par défaut, le mode est sûr (DEBUG désactivé). Le développement l'active
   explicitement avec DJANGO_DEBUG=1.
-- Les données (base SQLite, plus tard fichiers et sauvegardes) vivent dans un
-  dossier unique, DJANGO_DATA_DIR, facile à monter en volume Docker et à sauvegarder.
+- Les données (base SQLite, clé secrète, plus tard les fichiers) vivent dans un
+  dossier unique, DJANGO_DATA_DIR, facile à sauvegarder et à déplacer.
+- L'outil n'est servi que sur le poste où il tourne (127.0.0.1).
 """
 
 import os
+import secrets
 from pathlib import Path
-
-from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -29,30 +29,39 @@ def env_liste(nom):
     return [element.strip() for element in env(nom, "").split(",") if element.strip()]
 
 
+# --- Dossier de données -------------------------------------------------------
+
+DATA_DIR = Path(env("DJANGO_DATA_DIR", BASE_DIR / "data"))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+
 # --- Mode et sécurité ---------------------------------------------------------
 
 DEBUG = env("DJANGO_DEBUG", "0") == "1"
+
+
+def lire_ou_creer_cle_secrete(chemin):
+    """Lit la clé secrète dans un fichier ; la crée au premier lancement.
+
+    Rien à configurer à l'installation. Si le fichier est perdu, une nouvelle
+    clé est créée : la seule conséquence est qu'il faut se reconnecter.
+    """
+    if not chemin.exists():
+        chemin.write_text(secrets.token_urlsafe(50), encoding="utf-8")
+    return chemin.read_text(encoding="utf-8").strip()
+
 
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 if not SECRET_KEY:
     if DEBUG:
         SECRET_KEY = "dev-uniquement-cle-non-secrete"
     else:
-        raise ImproperlyConfigured(
-            "DJANGO_SECRET_KEY est absente. Renseignez-la dans le fichier .env "
-            "(une longue chaîne aléatoire), ou activez le mode développement "
-            "avec DJANGO_DEBUG=1."
-        )
+        SECRET_KEY = lire_ou_creer_cle_secrete(DATA_DIR / "cle_secrete.txt")
 
-# Noms ou adresses par lesquels l'outil est joint (ex. "suivi.cinema.lan,192.168.1.20").
-# En DEBUG, Django accepte localhost même si la liste est vide.
-ALLOWED_HOSTS = env_liste("DJANGO_ALLOWED_HOSTS")
+# L'outil n'écoute que sur ce PC : localhost suffit par défaut.
+ALLOWED_HOSTS = env_liste("DJANGO_ALLOWED_HOSTS") or ["127.0.0.1", "localhost"]
 
-# Origines autorisées pour les formulaires (ex. "http://suivi.cinema.lan").
-CSRF_TRUSTED_ORIGINS = env_liste("DJANGO_CSRF_TRUSTED_ORIGINS")
-
-# Note : l'outil sera servi sur le réseau local, a priori sans HTTPS.
-# Les cookies « secure » ne sont donc pas activés ici ; à revoir si HTTPS est mis en place.
+# Servi uniquement en local (127.0.0.1), sans HTTPS : pas de cookies « secure ».
 
 
 # --- Applications -------------------------------------------------------------
@@ -70,7 +79,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    # WhiteNoise sert les fichiers statiques (CSS, JS) sans serveur web séparé.
+    # WhiteNoise sert les fichiers statiques (CSS) sans serveur web séparé.
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     # Pas de LocaleMiddleware : l'interface est en français quelle que soit
@@ -102,10 +111,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 
-# --- Données et base ----------------------------------------------------------
-
-DATA_DIR = Path(env("DJANGO_DATA_DIR", BASE_DIR / "data"))
-DATA_DIR.mkdir(parents=True, exist_ok=True)
+# --- Base de données ----------------------------------------------------------
 
 DATABASES = {
     "default": {
@@ -155,15 +161,11 @@ USE_TZ = True  # stockage en UTC, affichage à l'heure de Paris
 # --- Fichiers statiques -------------------------------------------------------
 
 STATIC_URL = "static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"  # rempli par collectstatic (image Docker)
 
-STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    # Compression sans « manifest » : un fichier statique manquant ne peut pas
-    # faire planter une page. En contrepartie, le navigateur garde les fichiers
-    # en cache 60 s seulement, ce qui est sans importance sur un réseau local.
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
-}
+# WhiteNoise sert les fichiers directement depuis les dossiers « static » des
+# applications : pas de collectstatic, une étape de moins à la livraison.
+# Pour un seul utilisateur en local, l'absence de compression est sans effet.
+WHITENOISE_USE_FINDERS = True
 
 
 # --- Journaux -----------------------------------------------------------------

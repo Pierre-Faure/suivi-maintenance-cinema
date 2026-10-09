@@ -10,7 +10,6 @@ venv/
 *.sqlite3-shm
 /data/
 /media/
-/staticfiles/
 /backups/
 
 # --- Secrets et configuration locale ---
