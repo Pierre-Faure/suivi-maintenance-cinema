@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block titre %}Connexion · {% endblock %}
+
+{% block contenu %}
+<article class="connexion">
+  <h1>Connexion</h1>
+  <form method="post">
+    {% csrf_token %}
+    {{ form }}
+    <input type="hidden" name="next" value="{{ next }}">
+    <button type="submit">Se connecter</button>
+  </form>
+</article>
+{% endblock %}

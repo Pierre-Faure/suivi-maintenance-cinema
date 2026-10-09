@@ -1,0 +1,40 @@
+/*
+ * Retouches de Pico.css propres à l'outil.
+ * Garder ce fichier court : Pico fait l'essentiel.
+ */
+
+/* Bouton de déconnexion : un formulaire (Django exige un POST),
+   affiché comme un lien du menu. */
+nav form {
+  margin: 0;
+}
+
+nav form button {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--pico-primary);
+  font-weight: inherit;
+}
+
+nav form button:hover {
+  text-decoration: underline;
+}
+
+/* Erreurs de formulaire produites par Django. */
+.errorlist {
+  margin: 0 0 var(--pico-spacing);
+  padding: 0;
+  color: var(--pico-del-color);
+}
+
+.errorlist li {
+  list-style: none;
+}
+
+/* Page de connexion : carte étroite et centrée. */
+.connexion {
+  max-width: 26rem;
+  margin-inline: auto;
+}

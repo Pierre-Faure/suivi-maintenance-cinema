@@ -1,0 +1,35 @@
+{% load static %}<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>{% block titre %}{% endblock %}Suivi des affaires</title>
+  <link rel="stylesheet" href="{% static 'suivi/pico.classless.min.css' %}">
+  <link rel="stylesheet" href="{% static 'suivi/suivi.css' %}">
+</head>
+<body>
+  <header>
+    <nav>
+      <ul>
+        <li><strong>Suivi des affaires</strong></li>
+      </ul>
+      {% if user.is_authenticated %}
+      <ul>
+        <li><a href="{% url 'accueil' %}">Vue d'ensemble</a></li>
+        <li>
+          {# Django exige un POST pour se déconnecter : un petit formulaire, affiché comme un lien. #}
+          <form method="post" action="{% url 'deconnexion' %}">
+            {% csrf_token %}
+            <button type="submit">Se déconnecter</button>
+          </form>
+        </li>
+      </ul>
+      {% endif %}
+    </nav>
+  </header>
+  <main>
+    {% block contenu %}{% endblock %}
+  </main>
+</body>
+</html>

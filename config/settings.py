@@ -75,6 +75,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Applications du projet
     "comptes",
+    "suivi",
 ]
 
 MIDDLEWARE = [
@@ -87,6 +88,9 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Toutes les pages exigent d'être connecté, sauf celles marquées
+    # explicitement (la page de connexion l'est déjà par Django).
+    "django.contrib.auth.middleware.LoginRequiredMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -149,6 +153,16 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
+LOGIN_URL = "connexion"
+LOGIN_REDIRECT_URL = "accueil"
+LOGOUT_REDIRECT_URL = "connexion"
+
+# PC physiquement partagé : on se reconnecte à chaque ouverture de l'outil.
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+# Filet de sécurité : certains navigateurs restaurent les sessions au
+# redémarrage (« reprendre là où je m'étais arrêté »). Côté serveur, la session
+# expire quoi qu'il arrive au bout de 12 h.
+SESSION_COOKIE_AGE = 12 * 60 * 60
 
 # --- Langue, fuseau, formats --------------------------------------------------
 
