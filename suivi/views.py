@@ -28,6 +28,7 @@ from .forms import (
     NoteModifierForm,
 )
 from .models import Action, Affaire, Contact, EntreeJournal, Entreprise, Intervenant
+from .vue_ensemble import vue_ensemble
 
 
 def url_retour(request, defaut):
@@ -58,10 +59,22 @@ def formulaire(request, form, titre, annuler_url):
 
 
 def accueil(request):
-    """Page d'accueil : liste simple des affaires ouvertes, en attendant la vue
-    d'ensemble de l'étape 5."""
-    affaires = Affaire.objects.exclude(statut=Affaire.Statut.CLOS).order_by("-modifie_le")
-    return render(request, "suivi/accueil.html", {"affaires": affaires})
+    """Vue d'ensemble : les affaires ouvertes, classées par urgence.
+
+    Les blocs vides ne sont pas affichés.
+    """
+    vue = vue_ensemble()
+    blocs = [
+        ("En retard", "retard", vue.en_retard),
+        ("Aujourd'hui", "aujourdhui", vue.aujourdhui),
+        ("À venir", "a-venir", vue.a_venir),
+        ("Rien de prévu", "rien-de-prevu", vue.rien_de_prevu),
+    ]
+    return render(
+        request,
+        "suivi/accueil.html",
+        {"blocs": [bloc for bloc in blocs if bloc[2]], "vue": vue},
+    )
 
 
 # Ordre de passage à chaque clic : système → clair → sombre → système.
@@ -100,6 +113,8 @@ def fiche_affaire(request, affaire, **formulaires):
         "journal": affaire.journal.all(),
         "annuaire_vide": not Entreprise.objects.exists(),
         "form_action": formulaires.get("form_action") or ActionForm(affaire=affaire),
+        # Lien « Ajouter une action » de la vue d'ensemble : formulaire ouvert.
+        "ouvrir_action": request.GET.get("ajouter") == "action",
         "form_note": formulaires.get("form_note") or NoteForm(),
         "form_intervenant": formulaires.get("form_intervenant") or IntervenantForm(),
     }
@@ -228,16 +243,21 @@ def action_ajouter(request, pk):
 
 
 def action_cocher(request, pk):
-    """Coche une action à faire, ou décoche une action faite."""
+    """Coche une action à faire, ou décoche une action faite.
+
+    Revient à la page d'origine (« next ») : la fiche, ou la vue d'ensemble.
+    """
     action = get_object_or_404(
         Action.objects.select_related("affaire", "avec_qui__entreprise"), pk=pk
     )
+    retour = url_retour(request, reverse("affaire", args=[action.affaire_id]) + "#actions")
     if request.method == "POST":
         if action.est_a_faire:
             action.cocher()
+            messages.success(request, f"Fait : {action.quoi} ({action.affaire}).")
         else:
             action.decocher()
-    return redirect(reverse("affaire", args=[action.affaire_id]) + "#actions")
+    return redirect(retour)
 
 
 def action_modifier(request, pk):

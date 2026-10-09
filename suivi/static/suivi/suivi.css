@@ -145,3 +145,55 @@ article.note.auto {
 details {
   margin-bottom: calc(var(--pico-spacing) * 2);
 }
+
+/* Vue d'ensemble : un bloc par groupe, une ligne par affaire. */
+section.bloc {
+  margin-bottom: calc(var(--pico-spacing) * 2);
+}
+
+section.bloc h2 small {
+  color: var(--pico-muted-color);
+  font-weight: normal;
+}
+
+section.retard h2,
+.retard-jours {
+  color: var(--pico-del-color);
+}
+
+section.rien-de-prevu h2 {
+  color: var(--pico-muted-color);
+}
+
+/* Largeurs fixes : les colonnes restent alignées d'un bloc à l'autre. */
+section.bloc table {
+  table-layout: fixed;
+}
+
+td.col-case {
+  width: 3rem;
+}
+
+td.col-action {
+  width: 38%;
+}
+
+td.col-affaire {
+  width: 24%;
+}
+
+td.col-statut {
+  width: 8rem;
+}
+
+td.col-affaire {
+  font-weight: 600;
+}
+
+/* « +2 » : autres actions à faire sur l'affaire. */
+.autres {
+  margin-left: 0.3em;
+  padding: 0 0.4em;
+  border-radius: 1em;
+  background: var(--pico-muted-border-color);
+}

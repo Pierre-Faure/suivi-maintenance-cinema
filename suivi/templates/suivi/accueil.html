@@ -1,7 +1,5 @@
 {% extends "base.html" %}
 
-{# Liste provisoire : la vraie vue d'ensemble arrive à l'étape 5. #}
-
 {% block titre %}Vue d'ensemble · {% endblock %}
 
 {% block contenu %}
@@ -9,22 +7,47 @@
 
 <p><a href="{% url 'affaire_creer' %}" role="button">Nouvelle affaire</a></p>
 
-{% if affaires %}
-<table>
-  <thead>
-    <tr><th>Affaire</th><th>Statut</th><th>Point de situation</th></tr>
-  </thead>
-  <tbody>
-    {% for affaire in affaires %}
-    <tr>
-      <td><a href="{% url 'affaire' affaire.pk %}">{{ affaire.titre }}</a></td>
-      <td><span class="statut statut-{{ affaire.statut }}">{{ affaire.get_statut_display }}</span></td>
-      <td>{{ affaire.point_situation }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% else %}
+{% if vue.est_vide %}
 <p>Aucune affaire ouverte.</p>
 {% endif %}
+
+{% for titre, classe, affaires in blocs %}
+<section class="bloc {{ classe }}">
+  <h2>{{ titre }} <small>({{ affaires|length }})</small></h2>
+  <table>
+    <tbody>
+      {% for affaire in affaires %}
+      {% with action=affaire.prochaine_action %}
+      <tr>
+        <td class="col-case">
+          {% if action %}
+          {# Coche la prochaine action, puis revient ici. #}
+          <form method="post" action="{% url 'action_cocher' action.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'accueil' %}">
+            <button type="submit" class="case" title="Marquer comme faite" aria-label="Marquer comme faite : {{ action.quoi }}">☐</button>
+          </form>
+          {% endif %}
+        </td>
+        <td class="col-action">
+          {% if action %}
+          <strong>{{ action.date|date:"d/m/Y" }}</strong>
+          {% if affaire.jours_de_retard %}<small class="retard-jours">il y a {{ affaire.jours_de_retard }} j</small>{% endif %}
+          <br>{{ action.get_type_display }} : {{ action.quoi }}
+          {% if action.avec_qui %}<small>({{ action.avec_qui }})</small>{% endif %}
+          {% if affaire.autres_actions %}<small class="autres" title="Autres actions à faire">+{{ affaire.autres_actions }}</small>{% endif %}
+          {% else %}
+          <a href="{% url 'affaire' affaire.pk %}?ajouter=action#ajouter-action">Ajouter une action</a>
+          {% endif %}
+        </td>
+        <td class="col-affaire"><a href="{% url 'affaire' affaire.pk %}">{{ affaire.titre }}</a></td>
+        <td class="col-statut"><span class="statut statut-{{ affaire.statut }}">{{ affaire.get_statut_display }}</span></td>
+        <td>{{ affaire.point_situation }}</td>
+      </tr>
+      {% endwith %}
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endfor %}
 {% endblock %}

@@ -103,7 +103,7 @@
 <p>Rien de prévu.</p>
 {% endif %}
 
-<details{% if form_action.errors %} open{% endif %}>
+<details id="ajouter-action"{% if form_action.errors or ouvrir_action %} open{% endif %}>
   <summary>Ajouter une action</summary>
   <form method="post" action="{% url 'action_ajouter' affaire.pk %}" novalidate>
     {% csrf_token %}
