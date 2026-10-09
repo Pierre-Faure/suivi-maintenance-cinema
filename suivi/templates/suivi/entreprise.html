@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block titre %}{{ entreprise.nom }} · {% endblock %}
+
+{% block contenu %}
+<p><a href="{% url 'annuaire' %}">← Annuaire</a></p>
+
+<h1>{{ entreprise.nom }}</h1>
+
+{# Le vide reste vide : seules les informations renseignées s'affichent. #}
+{% if entreprise.telephone or entreprise.email %}
+<p>
+  {% if entreprise.telephone %}Téléphone : {{ entreprise.telephone }}<br>{% endif %}
+  {% if entreprise.email %}Email : <a href="mailto:{{ entreprise.email }}">{{ entreprise.email }}</a>{% endif %}
+</p>
+{% endif %}
+{% if entreprise.notes %}
+<p><strong>Notes</strong><br>{{ entreprise.notes|linebreaksbr }}</p>
+{% endif %}
+
+<p class="actions">
+  <a href="{% url 'entreprise_modifier' entreprise.pk %}" role="button">Modifier</a>
+  <a href="{% url 'entreprise_supprimer' entreprise.pk %}">Supprimer</a>
+</p>
+
+<h2>Contacts</h2>
+{% with contacts=entreprise.contacts.all %}
+{% if contacts %}
+<table>
+  <thead>
+    <tr><th>Nom</th><th>Fonction</th><th>Téléphone</th><th>Email</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for contact in contacts %}
+    <tr>
+      <td>{{ contact.nom }}</td>
+      <td>{{ contact.fonction }}</td>
+      <td>{{ contact.telephone }}</td>
+      <td>{% if contact.email %}<a href="mailto:{{ contact.email }}">{{ contact.email }}</a>{% endif %}</td>
+      <td class="actions">
+        <a href="{% url 'contact_modifier' contact.pk %}">Modifier</a>
+        <a href="{% url 'contact_supprimer' contact.pk %}">Supprimer</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>Aucun contact.</p>
+{% endif %}
+{% endwith %}
+
+<p><a href="{% url 'contact_creer' entreprise.pk %}" role="button">Ajouter un contact</a></p>
+{% endblock %}

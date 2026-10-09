@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block titre %}Annuaire · {% endblock %}
+
+{% block contenu %}
+<h1>Annuaire</h1>
+
+<form method="get" role="search">
+  <input type="search" name="q" value="{{ recherche }}"
+         placeholder="Entreprise, contact, notes…" aria-label="Rechercher dans l'annuaire">
+  <button type="submit">Rechercher</button>
+</form>
+
+<p><a href="{% url 'entreprise_creer' %}" role="button">Nouvelle entreprise</a></p>
+
+{% if entreprises %}
+<table>
+  <thead>
+    <tr><th>Entreprise</th><th>Téléphone</th><th>Email</th><th>Contacts</th></tr>
+  </thead>
+  <tbody>
+    {% for entreprise in entreprises %}
+    <tr>
+      <td><a href="{% url 'entreprise' entreprise.pk %}">{{ entreprise.nom }}</a></td>
+      <td>{{ entreprise.telephone }}</td>
+      <td>{% if entreprise.email %}<a href="mailto:{{ entreprise.email }}">{{ entreprise.email }}</a>{% endif %}</td>
+      <td>
+        {% for contact in entreprise.contacts.all %}
+          {{ contact.nom }}{% if contact.telephone %} · {{ contact.telephone }}{% endif %}{% if not forloop.last %}<br>{% endif %}
+        {% endfor %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% elif recherche %}
+<p>Aucune entreprise ne correspond à « {{ recherche }} ». <a href="{% url 'annuaire' %}">Tout afficher</a></p>
+{% else %}
+<p>L'annuaire est vide : commencez par ajouter une entreprise.</p>
+{% endif %}
+{% endblock %}

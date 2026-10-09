@@ -38,3 +38,34 @@ nav form button:hover {
   max-width: 26rem;
   margin-inline: auto;
 }
+
+/* Boutons et liens d'action côte à côte. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--pico-spacing);
+}
+
+.actions button,
+.actions [role="button"] {
+  margin: 0;
+  width: auto;
+}
+
+/* Bouton de suppression, en rouge. */
+button.danger {
+  background-color: var(--pico-del-color);
+  border-color: var(--pico-del-color);
+}
+
+/* Messages de confirmation (vert) ou d'erreur (rouge), après une action. */
+.message {
+  padding: calc(var(--pico-spacing) / 2) var(--pico-spacing);
+  border-left: 4px solid var(--pico-ins-color);
+  background: var(--pico-card-background-color);
+}
+
+.message.error {
+  border-left-color: var(--pico-del-color);
+}

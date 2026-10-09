@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{# Gabarit commun à toutes les suppressions : confirmation, ou explication si c'est impossible. #}
+
+{% block titre %}{{ titre }} · {% endblock %}
+
+{% block contenu %}
+<h1>{{ titre }}</h1>
+{% if impossible %}
+<p>{{ impossible }}</p>
+<p><a href="{{ annuler_url }}" role="button">Retour</a></p>
+{% else %}
+<p>{{ texte }}</p>
+<form method="post">
+  {% csrf_token %}
+  <p class="actions">
+    <button type="submit" class="danger">Supprimer</button>
+    <a href="{{ annuler_url }}">Annuler</a>
+  </p>
+</form>
+{% endif %}
+{% endblock %}

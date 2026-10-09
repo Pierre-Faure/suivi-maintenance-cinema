@@ -17,6 +17,7 @@
       {% if user.is_authenticated %}
       <ul>
         <li><a href="{% url 'accueil' %}">Vue d'ensemble</a></li>
+        <li><a href="{% url 'annuaire' %}">Annuaire</a></li>
         <li>
           {# Django exige un POST pour se déconnecter : un petit formulaire, affiché comme un lien. #}
           <form method="post" action="{% url 'deconnexion' %}">
@@ -29,6 +30,10 @@
     </nav>
   </header>
   <main>
+    {# Messages de confirmation ou d'erreur, affichés une fois après une action. #}
+    {% for message in messages %}
+    <p class="message {{ message.tags }}" role="status">{{ message }}</p>
+    {% endfor %}
     {% block contenu %}{% endblock %}
   </main>
 </body>
