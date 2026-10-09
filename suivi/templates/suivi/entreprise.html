@@ -37,10 +37,10 @@
       <td>{{ contact.fonction }}</td>
       <td>{{ contact.telephone }}</td>
       <td>{% if contact.email %}<a href="mailto:{{ contact.email }}">{{ contact.email }}</a>{% endif %}</td>
-      <td class="actions">
+      <td><span class="actions">
         <a href="{% url 'contact_modifier' contact.pk %}">Modifier</a>
         <a href="{% url 'contact_supprimer' contact.pk %}">Supprimer</a>
-      </td>
+      </span></td>
     </tr>
     {% endfor %}
   </tbody>

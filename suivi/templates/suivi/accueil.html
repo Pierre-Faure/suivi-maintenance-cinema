@@ -1,8 +1,30 @@
 {% extends "base.html" %}
 
+{# Liste provisoire : la vraie vue d'ensemble arrive à l'étape 5. #}
+
 {% block titre %}Vue d'ensemble · {% endblock %}
 
 {% block contenu %}
 <h1>Vue d'ensemble</h1>
-<p>Bonjour {{ user.get_short_name|default:user.username }}. Les affaires apparaîtront ici.</p>
+
+<p><a href="{% url 'affaire_creer' %}" role="button">Nouvelle affaire</a></p>
+
+{% if affaires %}
+<table>
+  <thead>
+    <tr><th>Affaire</th><th>Statut</th><th>Point de situation</th></tr>
+  </thead>
+  <tbody>
+    {% for affaire in affaires %}
+    <tr>
+      <td><a href="{% url 'affaire' affaire.pk %}">{{ affaire.titre }}</a></td>
+      <td><span class="statut statut-{{ affaire.statut }}">{{ affaire.get_statut_display }}</span></td>
+      <td>{{ affaire.point_situation }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>Aucune affaire ouverte.</p>
+{% endif %}
 {% endblock %}

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block titre %}{{ affaire.titre }} · {% endblock %}
+
+{% block contenu %}
+<p><a href="{% url 'accueil' %}">← Vue d'ensemble</a></p>
+
+<h1>{{ affaire.titre }}</h1>
+
+<p>
+  <span class="statut statut-{{ affaire.statut }}">{{ affaire.get_statut_display }}</span>
+  {% if affaire.date_debut %} · Début : {{ affaire.date_debut|date:"F Y" }}{% endif %}
+  {% if affaire.date_cloture %} · Close le {{ affaire.date_cloture|date:"d/m/Y" }}{% endif %}
+</p>
+
+{% if affaire.point_situation %}
+<p><strong>Point de situation</strong><br>{{ affaire.point_situation }}</p>
+{% endif %}
+
+<p class="actions">
+  <a href="{% url 'affaire_modifier' affaire.pk %}" role="button">Modifier</a>
+  <a href="{% url 'affaire_supprimer' affaire.pk %}">Supprimer</a>
+</p>
+
+{# --- Entreprises ------------------------------------------------------- #}
+
+<h2 id="entreprises">Entreprises</h2>
+{% if intervenants %}
+<table>
+  <tbody>
+    {% for intervenant in intervenants %}
+    <tr>
+      <td><a href="{% url 'entreprise' intervenant.entreprise_id %}">{{ intervenant.entreprise.nom }}</a></td>
+      <td>{% if intervenant.contact %}{{ intervenant.contact.nom }}{% endif %}</td>
+      <td>{{ intervenant.contact.telephone|default:intervenant.entreprise.telephone }}</td>
+      <td><a href="{% url 'intervenant_retirer' intervenant.pk %}">Retirer</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<details{% if form_intervenant.errors %} open{% endif %}>
+  <summary>Ajouter une entreprise</summary>
+  {% if annuaire_vide %}
+  <p>L'annuaire est vide.</p>
+  {% else %}
+  <form method="post" action="{% url 'intervenant_ajouter' affaire.pk %}" novalidate>
+    {% csrf_token %}
+    {{ form_intervenant }}
+    <p class="actions"><button type="submit">Ajouter</button></p>
+  </form>
+  {% endif %}
+  <p><a href="{% url 'entreprise_creer' %}?next={{ request.get_full_path|urlencode }}">Créer une entreprise dans l'annuaire</a></p>
+</details>
+
+{# --- Actions ------------------------------------------------------------ #}
+
+<h2 id="actions">Actions</h2>
+{% if actions_a_faire or actions_faites %}
+<table>
+  <tbody>
+    {% for action in actions_a_faire %}
+    <tr{% if action.en_retard %} class="en-retard"{% endif %}>
+      <td>
+        <form method="post" action="{% url 'action_cocher' action.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="case" title="Marquer comme faite" aria-label="Marquer comme faite">☐</button>
+        </form>
+      </td>
+      <td>{{ action.date|date:"d/m/Y" }}</td>
+      <td>{{ action.get_type_display }}</td>
+      <td>{{ action.quoi }}{% if action.avec_qui %} <small>({{ action.avec_qui }})</small>{% endif %}</td>
+      <td><span class="actions">
+        <a href="{% url 'action_modifier' action.pk %}">Modifier</a>
+        <a href="{% url 'action_supprimer' action.pk %}">Supprimer</a>
+      </span></td>
+    </tr>
+    {% endfor %}
+    {% for action in actions_faites %}
+    <tr class="faite">
+      <td>
+        <form method="post" action="{% url 'action_cocher' action.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="case" title="Remettre à faire" aria-label="Remettre à faire">☑&#xFE0E;</button>
+        </form>
+      </td>
+      <td>{{ action.date|date:"d/m/Y" }}</td>
+      <td>{{ action.get_type_display }}</td>
+      <td>{{ action.quoi }}{% if action.avec_qui %} <small>({{ action.avec_qui }})</small>{% endif %} <small>· faite le {{ action.faite_le|date:"d/m/Y" }}</small></td>
+      <td><span class="actions">
+        <a href="{% url 'action_modifier' action.pk %}">Modifier</a>
+        <a href="{% url 'action_supprimer' action.pk %}">Supprimer</a>
+      </span></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>Rien de prévu.</p>
+{% endif %}
+
+<details{% if form_action.errors %} open{% endif %}>
+  <summary>Ajouter une action</summary>
+  <form method="post" action="{% url 'action_ajouter' affaire.pk %}" novalidate>
+    {% csrf_token %}
+    {{ form_action }}
+    <p class="actions"><button type="submit">Ajouter</button></p>
+  </form>
+</details>
+
+{# --- Journal ------------------------------------------------------------ #}
+
+<h2 id="journal">Journal</h2>
+<form method="post" action="{% url 'note_ajouter' affaire.pk %}" novalidate>
+  {% csrf_token %}
+  {{ form_note }}
+  <p class="actions"><button type="submit">Ajouter la note</button></p>
+</form>
+
+{% for entree in journal %}
+<article class="note{% if entree.automatique %} auto{% endif %}">
+  <small>{{ entree.horodatage|date:"d/m/Y H:i" }}</small>
+  {% if not entree.automatique %}
+  <span class="actions">
+    <a href="{% url 'note_modifier' entree.pk %}">Modifier</a>
+    <a href="{% url 'note_supprimer' entree.pk %}">Supprimer</a>
+  </span>
+  {% endif %}
+  <p>{{ entree.texte|linebreaksbr }}</p>
+</article>
+{% empty %}
+<p>Aucune note.</p>
+{% endfor %}
+{% endblock %}

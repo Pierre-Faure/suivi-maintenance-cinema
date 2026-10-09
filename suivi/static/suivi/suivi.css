@@ -3,13 +3,14 @@
  * Garder ce fichier court : Pico fait l'essentiel.
  */
 
-/* Bouton de déconnexion : un formulaire (Django exige un POST),
-   affiché comme un lien du menu. */
+/* Boutons du menu (thème, déconnexion) : des formulaires (POST),
+   affichés comme des liens. Sélecteur précis : il doit l'emporter sur
+   le style des boutons de Pico. */
 nav form {
   margin: 0;
 }
 
-nav form button {
+nav form button[type="submit"] {
   margin: 0;
   padding: 0;
   border: none;
@@ -18,7 +19,10 @@ nav form button {
   font-weight: inherit;
 }
 
-nav form button:hover {
+nav form button[type="submit"]:hover,
+nav form button[type="submit"]:focus {
+  background: none;
+  box-shadow: none;
   text-decoration: underline;
 }
 
@@ -68,4 +72,76 @@ button.danger {
 
 .message.error {
   border-left-color: var(--pico-del-color);
+}
+
+/* Statut d'une affaire : une pastille. */
+.statut {
+  display: inline-block;
+  padding: 0 0.6em;
+  border: 1px solid currentColor;
+  border-radius: 1em;
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+.statut-en_cours {
+  color: var(--pico-primary);
+}
+
+.statut-en_attente {
+  color: #c98a00;
+}
+
+.statut-clos {
+  color: var(--pico-muted-color);
+}
+
+/* Actions d'une affaire. */
+td form {
+  margin: 0;
+}
+
+button.case {
+  margin: 0;
+  padding: 0 0.2em;
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 1.4em;
+  line-height: 1;
+}
+
+tr.en-retard td {
+  color: var(--pico-del-color);
+}
+
+tr.faite td {
+  color: var(--pico-muted-color);
+}
+
+/* Journal : une note par bloc ; entrées automatiques plus discrètes. */
+article.note {
+  margin-bottom: var(--pico-spacing);
+  padding: calc(var(--pico-spacing) / 2) var(--pico-spacing);
+}
+
+article.note p {
+  margin: 0.25em 0 0;
+}
+
+article.note .actions {
+  float: right;
+  font-size: 0.85em;
+}
+
+article.note.auto {
+  box-shadow: none;
+  background: none;
+  color: var(--pico-muted-color);
+  font-size: 0.9em;
+}
+
+/* Blocs repliables « Ajouter… » sous chaque section. */
+details {
+  margin-bottom: calc(var(--pico-spacing) * 2);
 }

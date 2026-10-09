@@ -1,14 +1,42 @@
 """Formulaires de l'outil."""
 
-from django import forms
+from datetime import timedelta
+from email.utils import parseaddr
 
-from .models import Contact, Entreprise
+from django import forms
+from django.utils import timezone
+
+from .models import Action, Affaire, Contact, EntreeJournal, Entreprise
+
+
+def champ_date():
+    """Calendrier du navigateur ; la valeur envoyée est au format AAAA-MM-JJ."""
+    return forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
+
+
+class EmailSouple(forms.EmailField):
+    """Champ email qui accepte aussi une adresse copiée depuis Outlook.
+
+    « Jean Dupont <jean.dupont@otis.fr> » devient « jean.dupont@otis.fr ».
+    """
+
+    def to_python(self, value):
+        value = super().to_python(value)
+        if "<" in value:
+            adresse = parseaddr(value)[1]
+            if adresse:
+                return adresse
+        return value
+
+
+# --- Annuaire -----------------------------------------------------------------
 
 
 class EntrepriseForm(forms.ModelForm):
     class Meta:
         model = Entreprise
         fields = ["nom", "telephone", "email", "notes"]
+        field_classes = {"email": EmailSouple}
         widgets = {"notes": forms.Textarea(attrs={"rows": 4})}
 
     def clean_nom(self):
@@ -26,3 +54,94 @@ class ContactForm(forms.ModelForm):
     class Meta:
         model = Contact
         fields = ["nom", "fonction", "telephone", "email"]
+        field_classes = {"email": EmailSouple}
+
+
+# --- Affaires -----------------------------------------------------------------
+
+
+class AffaireForm(forms.ModelForm):
+    class Meta:
+        model = Affaire
+        fields = ["titre", "statut", "point_situation", "date_debut"]
+        widgets = {"date_debut": champ_date()}
+
+
+class ActionForm(forms.ModelForm):
+    """Action d'une affaire : « avec qui » ne propose que ses intervenants."""
+
+    class Meta:
+        model = Action
+        fields = ["type", "date", "quoi", "avec_qui"]
+        widgets = {"date": champ_date()}
+
+    def __init__(self, *args, affaire, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Rattachée avant validation : Action.clean() vérifie « avec qui ».
+        self.instance.affaire = affaire
+        self.fields["avec_qui"].queryset = affaire.intervenants.select_related(
+            "entreprise", "contact"
+        )
+        self.fields["avec_qui"].empty_label = "—"
+        # Nouvelle action : relance dans une semaine par défaut, modifiable.
+        if self.instance.pk is None and not self.is_bound:
+            self.initial.setdefault("date", timezone.localdate() + timedelta(days=7))
+
+
+class NoteForm(forms.ModelForm):
+    """Ajout rapide d'une note : le texte seul, datée de maintenant."""
+
+    class Meta:
+        model = EntreeJournal
+        fields = ["texte"]
+        widgets = {"texte": forms.Textarea(attrs={"rows": 2})}
+        labels = {"texte": "Nouvelle note"}
+
+
+class NoteModifierForm(forms.ModelForm):
+    """Modification d'une note : texte et date (pour dater une note après coup)."""
+
+    class Meta:
+        model = EntreeJournal
+        fields = ["texte", "horodatage"]
+        widgets = {
+            "texte": forms.Textarea(attrs={"rows": 4}),
+            "horodatage": forms.DateTimeInput(
+                attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"
+            ),
+        }
+
+
+class IntervenantForm(forms.Form):
+    """Une seule liste : chaque entreprise, puis chacun de ses contacts.
+
+    Valeurs : « e12 » pour l'entreprise 12 seule, « c34 » pour le contact 34.
+    Pas de JavaScript : un choix suffit pour l'entreprise et le contact.
+    """
+
+    qui = forms.ChoiceField(label="Entreprise")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        choix = [("", "—")]
+        for entreprise in Entreprise.objects.prefetch_related("contacts"):
+            options = [(f"e{entreprise.pk}", entreprise.nom)]
+            options += [
+                (f"c{contact.pk}", f"{entreprise.nom} — {contact.nom}")
+                for contact in entreprise.contacts.all()
+            ]
+            choix.append((entreprise.nom, options))
+        self.fields["qui"].choices = choix
+
+    def clean_qui(self):
+        """Renvoie le couple (entreprise, contact ou None)."""
+        valeur = self.cleaned_data["qui"]
+        if valeur.startswith("c"):
+            contact = Contact.objects.select_related("entreprise").filter(pk=valeur[1:]).first()
+            if contact:
+                return contact.entreprise, contact
+        else:
+            entreprise = Entreprise.objects.filter(pk=valeur[1:]).first()
+            if entreprise:
+                return entreprise, None
+        raise forms.ValidationError("Ce choix n'existe plus : rechargez la page.")
