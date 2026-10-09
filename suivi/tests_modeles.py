@@ -124,11 +124,25 @@ class AnnuaireTests(TestCase):
         with self.assertRaises(ValidationError):
             intervenant.full_clean()
 
-    def test_une_entreprise_une_fois_par_affaire(self):
+    def test_entreprise_seule_une_fois_par_affaire(self):
         Intervenant.objects.create(affaire=self.affaire, entreprise=self.otis)
         doublon = Intervenant(affaire=self.affaire, entreprise=self.otis)
         with self.assertRaises(ValidationError):
             doublon.full_clean()
+
+    def test_meme_contact_une_fois_par_affaire(self):
+        Intervenant.objects.create(affaire=self.affaire, entreprise=self.otis, contact=self.dupont)
+        doublon = Intervenant(affaire=self.affaire, entreprise=self.otis, contact=self.dupont)
+        with self.assertRaises(ValidationError):
+            doublon.full_clean()
+
+    def test_deux_contacts_d_une_meme_entreprise(self):
+        martin = Contact.objects.create(entreprise=self.otis, nom="M. Martin")
+        Intervenant.objects.create(affaire=self.affaire, entreprise=self.otis, contact=self.dupont)
+        second = Intervenant(affaire=self.affaire, entreprise=self.otis, contact=martin)
+        second.full_clean()  # aucune erreur
+        second.save()
+        self.assertEqual(self.affaire.intervenants.count(), 2)
 
     def test_entreprise_utilisee_non_supprimable(self):
         Intervenant.objects.create(affaire=self.affaire, entreprise=self.otis)

@@ -77,6 +77,51 @@ class IntervenantEcransTests(Connecte):
         )
         self.assertEqual(self.affaire.intervenants.get().contact, self.dupont)
 
+    def test_deux_contacts_de_la_meme_entreprise(self):
+        martin = Contact.objects.create(entreprise=self.otis, nom="Martin")
+        url = reverse("intervenant_ajouter", args=[self.affaire.pk])
+        self.client.post(url, {"qui": f"c{self.dupont.pk}"})
+        self.client.post(url, {"qui": f"c{martin.pk}"})
+        self.assertEqual(self.affaire.intervenants.count(), 2)
+
+    def test_meme_ligne_deux_fois(self):
+        url = reverse("intervenant_ajouter", args=[self.affaire.pk])
+        self.client.post(url, {"qui": f"c{self.dupont.pk}"})
+        self.client.post(url, {"qui": f"c{self.dupont.pk}"})
+        self.assertEqual(self.affaire.intervenants.count(), 1)
+
+    def test_passer_sans_contact_garde_les_actions(self):
+        intervenant = Intervenant.objects.create(
+            affaire=self.affaire, entreprise=self.otis, contact=self.dupont
+        )
+        action = Action.objects.create(
+            affaire=self.affaire, date=timezone.localdate(), quoi="Relancer", avec_qui=intervenant
+        )
+        reponse = self.client.post(reverse("intervenant_modifier", args=[intervenant.pk]), {"contact": ""})
+        self.assertRedirects(reponse, self.fiche() + "#entreprises", fetch_redirect_response=False)
+        intervenant.refresh_from_db()
+        self.assertIsNone(intervenant.contact)
+        action.refresh_from_db()
+        self.assertEqual(action.avec_qui, intervenant)
+
+    def test_modifier_vers_une_ligne_existante_refuse(self):
+        Intervenant.objects.create(affaire=self.affaire, entreprise=self.otis)
+        avec_contact = Intervenant.objects.create(
+            affaire=self.affaire, entreprise=self.otis, contact=self.dupont
+        )
+        reponse = self.client.post(reverse("intervenant_modifier", args=[avec_contact.pk]), {"contact": ""})
+        self.assertContains(reponse, "Cette ligne existe déjà sur l&#x27;affaire.")
+        avec_contact.refresh_from_db()
+        self.assertEqual(avec_contact.contact, self.dupont)
+
+    def test_modifier_ne_propose_que_les_contacts_de_l_entreprise(self):
+        schindler = Entreprise.objects.create(nom="Schindler")
+        etranger = Contact.objects.create(entreprise=schindler, nom="Durand")
+        intervenant = Intervenant.objects.create(affaire=self.affaire, entreprise=self.otis)
+        self.client.post(reverse("intervenant_modifier", args=[intervenant.pk]), {"contact": etranger.pk})
+        intervenant.refresh_from_db()
+        self.assertIsNone(intervenant.contact)
+
     def test_choix_vide_refuse(self):
         reponse = self.client.post(reverse("intervenant_ajouter", args=[self.affaire.pk]), {"qui": ""})
         self.assertEqual(reponse.status_code, 200)

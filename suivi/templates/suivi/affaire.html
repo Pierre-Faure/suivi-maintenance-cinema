@@ -33,7 +33,10 @@
       <td><a href="{% url 'entreprise' intervenant.entreprise_id %}">{{ intervenant.entreprise.nom }}</a></td>
       <td>{% if intervenant.contact %}{{ intervenant.contact.nom }}{% endif %}</td>
       <td>{{ intervenant.contact.telephone|default:intervenant.entreprise.telephone }}</td>
-      <td><a href="{% url 'intervenant_retirer' intervenant.pk %}">Retirer</a></td>
+      <td><span class="actions">
+        <a href="{% url 'intervenant_modifier' intervenant.pk %}">Modifier</a>
+        <a href="{% url 'intervenant_retirer' intervenant.pk %}">Retirer</a>
+      </span></td>
     </tr>
     {% endfor %}
   </tbody>

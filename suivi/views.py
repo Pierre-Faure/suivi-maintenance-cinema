@@ -22,6 +22,7 @@ from .forms import (
     AffaireForm,
     ContactForm,
     EntrepriseForm,
+    IntervenantContactForm,
     IntervenantForm,
     NoteForm,
     NoteModifierForm,
@@ -160,19 +161,39 @@ def intervenant_ajouter(request, pk):
         return fiche_affaire(request, affaire, form_intervenant=form)
 
     entreprise, contact = form.cleaned_data["qui"]
-    intervenant, cree = Intervenant.objects.get_or_create(
-        affaire=affaire, entreprise=entreprise, defaults={"contact": contact}
-    )
-    if cree:
-        messages.success(request, f"{intervenant} ajoutée à l'affaire.")
-    elif contact and intervenant.contact != contact:
-        # Déjà présente : on met simplement à jour le contact.
-        intervenant.contact = contact
-        intervenant.save()
-        messages.success(request, f"Contact mis à jour : {intervenant}.")
+    lignes = affaire.intervenants.filter(entreprise=entreprise)
+    entreprise_seule = lignes.filter(contact__isnull=True).first()
+
+    if lignes.filter(contact=contact).exists():
+        # Exactement la même ligne : rien à faire.
+        messages.info(request, "Déjà sur l'affaire.")
+    elif contact and entreprise_seule:
+        # L'entreprise était là sans contact : elle prend ce contact,
+        # et garde les actions qui la visent.
+        entreprise_seule.contact = contact
+        entreprise_seule.save()
+        messages.success(request, f"Contact précisé : {entreprise_seule}.")
     else:
-        messages.info(request, f"{entreprise} intervient déjà sur l'affaire.")
+        intervenant = Intervenant.objects.create(
+            affaire=affaire, entreprise=entreprise, contact=contact
+        )
+        messages.success(request, f"Ajouté à l'affaire : {intervenant}.")
     return redirect(reverse("affaire", args=[pk]) + "#entreprises")
+
+
+def intervenant_modifier(request, pk):
+    """Change le contact d'une ligne, sans la retirer : ses actions sont conservées."""
+    intervenant = get_object_or_404(Intervenant.objects.select_related("entreprise"), pk=pk)
+    retour = reverse("affaire", args=[intervenant.affaire_id]) + "#entreprises"
+    if request.method == "POST":
+        form = IntervenantContactForm(request.POST, instance=intervenant)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Modifié : {intervenant}.")
+            return redirect(retour)
+    else:
+        form = IntervenantContactForm(instance=intervenant)
+    return formulaire(request, form, f"Contact chez {intervenant.entreprise}", retour)
 
 
 def intervenant_retirer(request, pk):

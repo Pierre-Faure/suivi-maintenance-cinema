@@ -136,7 +136,11 @@ class Affaire(models.Model):
 
 
 class Intervenant(models.Model):
-    """Une entreprise (et éventuellement un de ses contacts) sur une affaire."""
+    """Une entreprise, ou un de ses contacts, sur une affaire.
+
+    Une ligne par personne : « XXX — maçon » et « XXX — plâtrier » peuvent
+    coexister sur la même affaire. Une même ligne n'apparaît jamais deux fois.
+    """
 
     affaire = models.ForeignKey(
         Affaire,
@@ -161,15 +165,26 @@ class Intervenant(models.Model):
     )
 
     class Meta:
-        ordering = ["entreprise__nom"]
+        ordering = ["entreprise__nom", "contact__nom"]
         verbose_name = "intervenant"
         verbose_name_plural = "intervenants"
         constraints = [
+            # Pas deux fois le même contact sur une affaire.
+            models.UniqueConstraint(
+                fields=["affaire", "entreprise", "contact"],
+                name="intervenant_unique",
+                violation_error_message="Ce contact est déjà sur l'affaire.",
+            ),
+            # Pas deux fois l'entreprise « sans contact » : en base, deux contacts
+            # vides ne comptent pas comme identiques, d'où cette seconde règle.
             models.UniqueConstraint(
                 fields=["affaire", "entreprise"],
-                name="intervenant_unique_par_affaire",
-                violation_error_message="Cette entreprise intervient déjà sur l'affaire.",
-            )
+                condition=models.Q(contact__isnull=True),
+                name="entreprise_seule_unique",
+                violation_error_message=(
+                    "Cette entreprise est déjà sur l'affaire sans contact particulier."
+                ),
+            ),
         ]
 
     def __str__(self):

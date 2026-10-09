@@ -6,7 +6,7 @@ from email.utils import parseaddr
 from django import forms
 from django.utils import timezone
 
-from .models import Action, Affaire, Contact, EntreeJournal, Entreprise
+from .models import Action, Affaire, Contact, EntreeJournal, Entreprise, Intervenant
 
 
 def champ_date():
@@ -110,6 +110,33 @@ class NoteModifierForm(forms.ModelForm):
                 attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"
             ),
         }
+
+
+class IntervenantContactForm(forms.ModelForm):
+    """Change le contact d'une ligne, ou la passe « sans contact particulier »."""
+
+    class Meta:
+        model = Intervenant
+        fields = ["contact"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["contact"].queryset = self.instance.entreprise.contacts.all()
+        self.fields["contact"].empty_label = "Sans contact particulier"
+        self.fields["contact"].label_from_instance = lambda contact: contact.nom
+
+    def clean_contact(self):
+        # L'affaire et l'entreprise ne font pas partie du formulaire : Django ne
+        # vérifie donc pas les doublons tout seul. On le fait ici.
+        contact = self.cleaned_data["contact"]
+        doublon = Intervenant.objects.filter(
+            affaire_id=self.instance.affaire_id,
+            entreprise_id=self.instance.entreprise_id,
+            contact=contact,
+        ).exclude(pk=self.instance.pk)
+        if doublon.exists():
+            raise forms.ValidationError("Cette ligne existe déjà sur l'affaire.")
+        return contact
 
 
 class IntervenantForm(forms.Form):

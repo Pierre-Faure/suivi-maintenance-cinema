@@ -15,6 +15,7 @@ urlpatterns = [
     path("affaires/<int:pk>/entreprises/ajouter/", views.intervenant_ajouter, name="intervenant_ajouter"),
     path("affaires/<int:pk>/actions/ajouter/", views.action_ajouter, name="action_ajouter"),
     path("affaires/<int:pk>/journal/ajouter/", views.note_ajouter, name="note_ajouter"),
+    path("intervenants/<int:pk>/modifier/", views.intervenant_modifier, name="intervenant_modifier"),
     path("intervenants/<int:pk>/retirer/", views.intervenant_retirer, name="intervenant_retirer"),
     path("actions/<int:pk>/cocher/", views.action_cocher, name="action_cocher"),
     path("actions/<int:pk>/modifier/", views.action_modifier, name="action_modifier"),
