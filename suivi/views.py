@@ -77,6 +77,51 @@ def accueil(request):
     )
 
 
+# --- Historique ---------------------------------------------------------------
+
+
+def historique(request):
+    """Toutes les affaires, ouvertes et closes, avec recherche et filtre par statut.
+
+    La recherche porte sur le titre, le point de situation, le journal, les
+    actions, et le nom des entreprises et contacts. La plus récemment modifiée
+    d'abord.
+    """
+    recherche = request.GET.get("q", "").strip()
+    filtre = request.GET.get("statut", "")
+
+    affaires = Affaire.objects.prefetch_related("intervenants__entreprise")
+    if filtre == "ouvertes":
+        affaires = affaires.exclude(statut=Affaire.Statut.CLOS)
+    elif filtre == "closes":
+        affaires = affaires.filter(statut=Affaire.Statut.CLOS)
+    else:
+        filtre = ""  # valeur inconnue : on montre tout
+
+    if recherche:
+        affaires = affaires.filter(
+            Q(titre__icontains=recherche)
+            | Q(point_situation__icontains=recherche)
+            | Q(journal__texte__icontains=recherche)
+            | Q(actions__quoi__icontains=recherche)
+            | Q(intervenants__entreprise__nom__icontains=recherche)
+            | Q(intervenants__contact__nom__icontains=recherche)
+        ).distinct()  # une affaire trouvée par plusieurs chemins n'apparaît qu'une fois
+
+    affaires = list(affaires.order_by("-modifie_le"))
+    for affaire in affaires:
+        # Une entreprise peut figurer plusieurs fois (un contact par ligne).
+        affaire.noms_entreprises = sorted(
+            {intervenant.entreprise.nom for intervenant in affaire.intervenants.all()}
+        )
+
+    return render(
+        request,
+        "suivi/historique.html",
+        {"affaires": affaires, "recherche": recherche, "filtre": filtre},
+    )
+
+
 # Ordre de passage à chaque clic : système → clair → sombre → système.
 THEME_SUIVANT = {"": "light", "light": "dark", "dark": ""}
 
@@ -351,8 +396,21 @@ def annuaire(request):
 
 
 def entreprise_fiche(request, pk):
+    """Fiche entreprise : coordonnées, contacts, et les affaires où elle intervient,
+    ouvertes d'abord, closes ensuite."""
     entreprise = get_object_or_404(Entreprise, pk=pk)
-    return render(request, "suivi/entreprise.html", {"entreprise": entreprise})
+    affaires = (
+        Affaire.objects.filter(intervenants__entreprise=entreprise)
+        .distinct()
+        .order_by("-modifie_le")
+    )
+    ouvertes = [affaire for affaire in affaires if not affaire.est_close]
+    closes = [affaire for affaire in affaires if affaire.est_close]
+    return render(
+        request,
+        "suivi/entreprise.html",
+        {"entreprise": entreprise, "affaires": ouvertes + closes},
+    )
 
 
 def entreprise_creer(request):
@@ -401,7 +459,7 @@ def entreprise_supprimer(request, pk):
     if nb_affaires:
         s = "s" if nb_affaires > 1 else ""
         impossible = (
-            f"Elle intervient sur {nb_affaires} affaire{s}. "
+            f"Elle intervient sur {nb_affaires} affaire{s}, listée{s} sur sa fiche. "
             "Retirez-la de ces affaires pour pouvoir la supprimer."
         )
     return confirmer_suppression(

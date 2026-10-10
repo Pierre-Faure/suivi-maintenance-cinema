@@ -3,7 +3,12 @@
 {% block titre %}{{ affaire.titre }} · {% endblock %}
 
 {% block contenu %}
+{# Une affaire close n'est plus dans la vue d'ensemble : retour à l'historique. #}
+{% if affaire.est_close %}
+<p><a href="{% url 'historique' %}">← Historique</a></p>
+{% else %}
 <p><a href="{% url 'accueil' %}">← Vue d'ensemble</a></p>
+{% endif %}
 
 <h1>{{ affaire.titre }}</h1>
 

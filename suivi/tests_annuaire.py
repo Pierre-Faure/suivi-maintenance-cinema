@@ -72,7 +72,7 @@ class AnnuaireEcransTests(TestCase):
         affaire = Affaire.objects.create(titre="Ascenseur")
         Intervenant.objects.create(affaire=affaire, entreprise=self.otis)
         reponse = self.client.get(reverse("entreprise_supprimer", args=[self.otis.pk]))
-        self.assertContains(reponse, "Elle intervient sur 1 affaire.")
+        self.assertContains(reponse, "Elle intervient sur 1 affaire, listée sur sa fiche.")
         self.client.post(reverse("entreprise_supprimer", args=[self.otis.pk]))
         self.assertTrue(Entreprise.objects.filter(pk=self.otis.pk).exists())
 

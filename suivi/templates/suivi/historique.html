@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block titre %}Historique · {% endblock %}
+
+{% block contenu %}
+<h1>Historique des affaires</h1>
+
+<form method="get" role="search">
+  <input type="search" name="q" value="{{ recherche }}"
+         placeholder="Titre, entreprise, contact, journal…" aria-label="Rechercher une affaire">
+  <select name="statut" aria-label="Statut">
+    <option value=""{% if not filtre %} selected{% endif %}>Toutes</option>
+    <option value="ouvertes"{% if filtre == "ouvertes" %} selected{% endif %}>Ouvertes</option>
+    <option value="closes"{% if filtre == "closes" %} selected{% endif %}>Closes</option>
+  </select>
+  <button type="submit">Rechercher</button>
+</form>
+
+{% if affaires %}
+<p><small>{{ affaires|length }} affaire{{ affaires|length|pluralize }}{% if recherche or filtre %} · <a href="{% url 'historique' %}">tout afficher</a>{% endif %}</small></p>
+<table>
+  <thead>
+    <tr><th>Affaire</th><th>Statut</th><th>Entreprises</th><th>Début</th><th>Clôture</th></tr>
+  </thead>
+  <tbody>
+    {% for affaire in affaires %}
+    <tr>
+      <td>
+        <a href="{% url 'affaire' affaire.pk %}">{{ affaire.titre }}</a>
+        {% if affaire.point_situation %}<br><small>{{ affaire.point_situation }}</small>{% endif %}
+      </td>
+      <td><span class="statut statut-{{ affaire.statut }}">{{ affaire.get_statut_display }}</span></td>
+      <td>{{ affaire.noms_entreprises|join:", " }}</td>
+      <td>{{ affaire.date_debut|date:"m/Y" }}</td>
+      <td>{{ affaire.date_cloture|date:"d/m/Y" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% elif recherche or filtre %}
+<p>Aucune affaire ne correspond. <a href="{% url 'historique' %}">Tout afficher</a></p>
+{% else %}
+<p>Aucune affaire pour l'instant.</p>
+{% endif %}
+{% endblock %}

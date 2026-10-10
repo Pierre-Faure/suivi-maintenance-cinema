@@ -51,4 +51,21 @@
 {% endwith %}
 
 <p><a href="{% url 'contact_creer' entreprise.pk %}" role="button">Ajouter un contact</a></p>
+
+<h2>Affaires</h2>
+{% if affaires %}
+<table>
+  <tbody>
+    {% for affaire in affaires %}
+    <tr>
+      <td><a href="{% url 'affaire' affaire.pk %}">{{ affaire.titre }}</a></td>
+      <td><span class="statut statut-{{ affaire.statut }}">{{ affaire.get_statut_display }}</span></td>
+      <td>{% if affaire.est_close %}Close le {{ affaire.date_cloture|date:"d/m/Y" }}{% else %}{{ affaire.point_situation }}{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>Aucune affaire.</p>
+{% endif %}
 {% endblock %}

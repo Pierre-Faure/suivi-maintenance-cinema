@@ -6,6 +6,7 @@ from . import views
 
 urlpatterns = [
     path("", views.accueil, name="accueil"),
+    path("historique/", views.historique, name="historique"),
     path("theme/", views.changer_theme, name="theme"),
     # Affaires
     path("affaires/nouvelle/", views.affaire_creer, name="affaire_creer"),

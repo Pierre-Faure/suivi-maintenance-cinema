@@ -17,6 +17,7 @@
       {% if user.is_authenticated %}
       <ul>
         <li><a href="{% url 'accueil' %}">Vue d'ensemble</a></li>
+        <li><a href="{% url 'historique' %}">Historique</a></li>
         <li><a href="{% url 'annuaire' %}">Annuaire</a></li>
         <li>
           {# Chaque clic passe au thème suivant : système → clair → sombre. #}
