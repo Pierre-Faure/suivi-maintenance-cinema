@@ -7,8 +7,9 @@ entreprises, chantiers, vérifications) et ce qu'il doit relancer.
 Outil personnel : un seul utilisateur, sur son PC. Objectif : savoir en moins
 d'une minute où en est chaque affaire et ce qu'il y a à faire aujourd'hui.
 
-**État :** MVP en cours de réalisation. Socle technique en place, aucune
-fonctionnalité métier pour l'instant.
+**État :** MVP en cours de finalisation : vue d'ensemble, affaires (entreprises,
+actions, journal), annuaire, historique et recherche, lanceur avec sauvegarde
+et mises à jour.
 
 ## Pile
 
@@ -34,14 +35,35 @@ le définissent automatiquement (`.vscode/settings.json`). Ailleurs, dans PowerS
 
 Placer le projet hors d'un dossier synchronisé (OneDrive) : SQLite le supporte mal.
 
-## Lancement en mode normal
+## Lancement : `lancer.cmd`
+
+C'est le fichier que vise l'icône du bureau (raccourci réglé sur « Exécuter : Réduite »). Il :
+
+1. met à jour le code (`git pull` de la branche suivie par le poste) ; sans Internet,
+   il continue avec la version en place ;
+2. lance `uv run python manage.py lancer`, qui :
+   - ouvre simplement le navigateur si l'outil tourne déjà ;
+   - sauvegarde la base dans `data/sauvegardes/` (30 copies gardées), puis sur le
+     partage réseau si `data/sauvegarde_reseau.txt` en donne le chemin ;
+   - applique les migrations ;
+   - démarre Waitress sur `127.0.0.1:8000` et ouvre le navigateur.
+
+Fermer la fenêtre arrête l'outil. Chaque lancement est noté dans `data/lanceur.log`.
+L'application n'écoute que sur le poste lui-même ; la clé secrète est créée au premier lancement.
+
+## Versions et mise en production
+
+- On développe et on pousse sur `main`.
+- Les postes d'utilisation suivent la branche **`prod`** : seul ce qui y est poussé
+  arrive chez l'utilisateur, au lancement suivant.
 
 ```powershell
-uv run waitress-serve --listen=127.0.0.1:8000 config.wsgi:application
+git push origin main:prod      # mettre en production l'état actuel de main
 ```
 
-L'application n'écoute que sur le poste lui-même. Aucune configuration n'est
-nécessaire : la clé secrète est créée au premier lancement.
+Accès des postes au dépôt privé : une **clé de déploiement** en lecture seule par
+poste (GitHub → Settings → Deploy keys), sans compte personnel. Une clé se révoque
+d'un clic.
 
 ## Données
 
@@ -49,7 +71,11 @@ Tout est dans un seul dossier, `data/` par défaut (modifiable avec `DJANGO_DATA
 
 - `db.sqlite3` : la base ;
 - `cle_secrete.txt` : la clé de signature des sessions, recréée si elle est perdue
-  (il suffit alors de se reconnecter).
+  (il suffit alors de se reconnecter) ;
+- `sauvegardes/` : les copies de la base faites à chaque lancement ;
+- `sauvegarde_reseau.txt` (facultatif) : une ligne, le chemin du dossier de
+  sauvegarde sur le partage réseau ;
+- `lanceur.log` : le journal des lancements.
 
 Ce dossier n'est pas versionné. Sauvegarder l'outil, c'est copier ce dossier.
 
