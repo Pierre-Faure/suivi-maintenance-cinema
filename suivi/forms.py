@@ -211,3 +211,18 @@ class DossierEntrepriseForm(forms.Form):
             choix.append((actuel, f"{actuel} (introuvable)"))
         self.fields["dossier"].choices = choix
         self.initial.setdefault("dossier", actuel)
+
+
+class ImportForm(forms.Form):
+    """Destination et année d'un import. Les fichiers eux-mêmes arrivent à
+    part (request.FILES), le champ étant écrit dans le gabarit."""
+
+    destination = forms.ChoiceField(label="Ranger dans")
+    annee = forms.ChoiceField(label="Année")
+
+    def __init__(self, *args, destinations, annees, defaut=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["destination"].choices = destinations  # groupées : entreprises, autres dossiers
+        self.fields["annee"].choices = [(annee, annee) for annee in annees]
+        self.initial.setdefault("destination", defaut)
+        self.initial.setdefault("annee", str(timezone.localdate().year))

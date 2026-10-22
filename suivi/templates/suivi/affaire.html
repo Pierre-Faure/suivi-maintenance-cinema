@@ -110,6 +110,21 @@
 {% endif %}
 {% if documents.partage_ok %}
 <p><a href="{% url 'explorateur' affaire.pk %}" role="button">Lier des fichiers</a></p>
+{% if form_import %}
+<details id="importer"{% if form_import.errors %} open{% endif %}>
+  <summary>Importer des fichiers</summary>
+  <form method="post" action="{% url 'importer' affaire.pk %}" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {{ form_import.non_field_errors }}
+    <label for="id_fichiers">Fichiers <small>· glissez-les dans le cadre ou cliquez pour les choisir (50 Mo au plus chacun)</small></label>
+    <input type="file" name="fichiers" id="id_fichiers" class="depot" multiple>
+    {{ form_import.destination.as_field_group }}
+    {{ form_import.annee.as_field_group }}
+    <p><small>Ils sont rangés dans le dossier choisi, sous l'année, puis liés à l'affaire. Rien n'est écrasé ; un fichier déjà présent dans ce dossier est lié sans être recopié.</small></p>
+    <p class="actions"><button type="submit">Importer</button></p>
+  </form>
+</details>
+{% endif %}
 {% elif not documents.racine %}
 <p><small>Pour lier des fichiers, réglez d'abord la racine des documents dans les <a href="{% url 'reglages' %}">Réglages</a>.</small></p>
 {% endif %}

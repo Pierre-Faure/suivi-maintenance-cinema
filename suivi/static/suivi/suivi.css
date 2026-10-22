@@ -202,3 +202,65 @@ td.col-affaire {
   border-radius: 1em;
   background: var(--pico-muted-border-color);
 }
+
+/* Boutons qui doivent ressembler à des liens (ouvrir un document, retirer…) :
+   ce sont des formulaires POST, pour la sécurité. */
+button.lien {
+  margin: 0;
+  padding: 0;
+  width: auto;
+  border: none;
+  background: none;
+  color: var(--pico-primary);
+  font-size: inherit;
+  font-weight: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+button.lien:hover,
+button.lien:focus {
+  background: none;
+  box-shadow: none;
+  color: var(--pico-primary-hover);
+}
+
+td .actions form {
+  display: inline;
+}
+
+/* Document introuvable : barré, en rouge. */
+tr.introuvable td:first-child span {
+  color: var(--pico-del-color);
+  text-decoration: line-through;
+}
+
+/* Explorateur intégré. */
+table.explorateur td:first-child {
+  width: 2.5rem;
+  text-align: center;
+}
+
+table.explorateur input {
+  margin: 0;
+}
+
+/* Import : le champ fichier sert de zone de dépôt (glisser-déposer natif du
+   navigateur, sans JavaScript). */
+input[type="file"].depot {
+  padding: calc(var(--pico-spacing) * 2) var(--pico-spacing);
+  border: 2px dashed var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  height: auto;
+  cursor: pointer;
+}
+
+input[type="file"].depot:hover,
+input[type="file"].depot:focus {
+  border-color: var(--pico-primary);
+}
+
+input[type="file"].depot::file-selector-button {
+  margin: 0 var(--pico-spacing) 0 0;
+}

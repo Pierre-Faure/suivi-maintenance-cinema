@@ -11,12 +11,14 @@ Les adresses qui ne font qu'enregistrer (cocher, ajouter depuis la fiche)
 renvoient vers la fiche si on les ouvre directement, au lieu d'une erreur.
 """
 
+import re
 from datetime import datetime, timezone as tz
 
 from django.contrib import messages
 from django.db.models import ProtectedError, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 
 from .forms import (
@@ -25,6 +27,7 @@ from .forms import (
     ContactForm,
     DossierEntrepriseForm,
     EntrepriseForm,
+    ImportForm,
     IntervenantContactForm,
     IntervenantForm,
     NoteForm,
@@ -35,10 +38,13 @@ from .models import Action, Affaire, Contact, EntreeJournal, Entreprise, Interve
 from .partage import (
     HorsRacine,
     accessible,
+    TAILLE_MAX,
     chemin_dans_racine,
+    deposer,
     est_executable,
     lister,
     montrer,
+    nom_sur,
     ouvrir,
     proposer_dossier,
     relatif,
@@ -163,6 +169,8 @@ def changer_theme(request):
 def fiche_affaire(request, affaire, **formulaires):
     """Affiche la fiche. Les formulaires passés (avec leurs erreurs) remplacent
     les formulaires vides."""
+    reglages = Reglages.actuels()
+    documents = documents_affaire(affaire, reglages)
     contexte = {
         "affaire": affaire,
         "intervenants": affaire.intervenants.select_related("entreprise", "contact"),
@@ -173,7 +181,8 @@ def fiche_affaire(request, affaire, **formulaires):
         .select_related("avec_qui__entreprise")
         .order_by("-faite_le", "-date"),
         "journal": affaire.journal.all(),
-        "documents": documents_affaire(affaire, Reglages.actuels()),
+        "documents": documents,
+        "form_import": formulaires.get("form_import") or formulaire_import(affaire, reglages, documents),
         "annuaire_vide": not Entreprise.objects.exists(),
         "form_action": formulaires.get("form_action") or ActionForm(affaire=affaire),
         # Lien « Ajouter une action » de la vue d'ensemble : formulaire ouvert.
@@ -888,4 +897,107 @@ def lier_fichiers(request, affaire, racine, a_relier, fiche):
         messages.success(request, f"{nouveaux} fichier{s} lié{s} à l'affaire.")
     else:
         messages.info(request, "Aucun nouveau fichier lié.")
+    return redirect(fiche)
+
+
+# --- Import de fichiers sur le partage ------------------------------------------
+
+
+def destinations_import(affaire, reglages):
+    """Où ranger un fichier importé : (choix groupés, choix par défaut, années).
+
+    D'abord les dossiers des entreprises de l'affaire, puis les dossiers de la
+    racine qui ne sont à aucune entreprise (« Autres », « Sinistres »…).
+    Par défaut : la première entreprise de l'affaire, sinon « Autres ».
+    Années proposées : l'année en cours, la précédente, et celles qui existent
+    déjà dans les dossiers des entreprises de l'affaire (ou dans « Autres »).
+    """
+    racine = reglages.chemin_racine
+    entreprises = [(dossier, nom) for nom, dossier in dossiers_des_entreprises(affaire, racine)]
+    autres = [(nom, nom) for nom in dossiers_disponibles(reglages)]
+    choix = []
+    if entreprises:
+        choix.append(("Entreprises de l'affaire", entreprises))
+    if autres:
+        choix.append(("Autres dossiers", autres))
+
+    defaut = None
+    if entreprises:
+        defaut = entreprises[0][0]
+    elif autres:
+        defaut = next((c for c, _ in autres if c.casefold() == "autres"), autres[0][0])
+
+    annee = timezone.localdate().year
+    annees = {str(annee), str(annee - 1)}
+    for dossier in [c for c, _ in entreprises] or ([defaut] if defaut else []):
+        try:
+            annees.update(n for n in sous_dossiers(chemin_dans_racine(racine, dossier)) if re.fullmatch(r"\d{4}", n))
+        except HorsRacine:
+            continue
+    return choix, defaut, sorted(annees, reverse=True)
+
+
+def formulaire_import(affaire, reglages, documents, data=None):
+    """Le formulaire d'import, ou None si le partage n'est pas disponible."""
+    if not documents["partage_ok"]:
+        return None
+    choix, defaut, annees = destinations_import(affaire, reglages)
+    if not choix:
+        return None
+    return ImportForm(data, destinations=choix, annees=annees, defaut=defaut)
+
+
+def importer(request, pk):
+    """Copie les fichiers déposés dans « destination/année » sur le partage et
+    les lie à l'affaire. Rien n'est jamais écrasé ; un fichier déjà présent dans
+    ce dossier (même contenu) est lié sans être recopié."""
+    affaire = get_object_or_404(Affaire, pk=pk)
+    fiche = reverse("affaire", args=[pk]) + "#documents"
+    if request.method != "POST":
+        return redirect(fiche)
+    reglages = Reglages.actuels()
+    documents = documents_affaire(affaire, reglages)
+    form = formulaire_import(affaire, reglages, documents, request.POST)
+    if form is None:
+        messages.error(request, "Partage indisponible : import impossible pour l'instant.")
+        return redirect(fiche)
+
+    envois = request.FILES.getlist("fichiers")
+    if form.is_valid() and not envois:
+        form.add_error(None, "Choisissez ou déposez au moins un fichier.")
+    if not form.is_valid():
+        return fiche_affaire(request, affaire, form_import=form)
+
+    racine = reglages.chemin_racine
+    destination, annee = form.cleaned_data["destination"], form.cleaned_data["annee"]
+    try:
+        dossier = chemin_dans_racine(racine, destination) / annee
+    except HorsRacine:  # impossible avec les choix proposés ; par prudence
+        return redirect(fiche)
+
+    copies, deja_la, refus = [], [], []
+    for envoi in envois:
+        nom = nom_sur(envoi.name)
+        if est_executable(nom):
+            refus.append(f"{nom} (programme)")
+            continue
+        if envoi.size > TAILLE_MAX:
+            refus.append(f"{nom} (plus de {TAILLE_MAX // (1024 * 1024)} Mo : copiez-le à la main dans le dossier, puis liez-le)")
+            continue
+        try:
+            chemin, copie = deposer(envoi, dossier)
+        except OSError as erreur:
+            refus.append(f"{nom} ({erreur.strerror or erreur})")
+            continue
+        Lien.objects.get_or_create(affaire=affaire, chemin=relatif(racine, chemin))
+        (copies if copie else deja_la).append(chemin.name)
+
+    lieu = " › ".join([destination, annee])
+    if copies:
+        s = "s" if len(copies) > 1 else ""
+        messages.success(request, f"{len(copies)} fichier{s} importé{s} dans {lieu} : {', '.join(copies)}.")
+    if deja_la:
+        messages.info(request, f"Déjà dans {lieu}, lié sans copie : {', '.join(deja_la)}.")
+    if refus:
+        messages.error(request, "Non importé : " + " ; ".join(refus) + ".")
     return redirect(fiche)

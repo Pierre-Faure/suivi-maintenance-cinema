@@ -8,7 +8,7 @@ Outil personnel : un seul utilisateur, sur son PC. Objectif : savoir en moins
 d'une minute où en est chaque affaire et ce qu'il y a à faire aujourd'hui.
 
 **État :** MVP en cours de finalisation : vue d'ensemble, affaires (entreprises,
-actions, journal, documents liés), annuaire, historique et recherche, lanceur
+actions, journal, documents liés ou importés), annuaire, historique et recherche, lanceur
 avec sauvegarde et mises à jour.
 
 ## Pile
@@ -86,6 +86,13 @@ qui part du dossier de l'entreprise. L'outil ne fait qu'ouvrir les fichiers lié
 modifie, ne déplace et ne supprime jamais rien sur le partage. Les programmes
 (`.exe`, `.bat`, `.lnk`…) ne peuvent pas être liés ni ouverts. Un fichier renommé
 ou déplacé apparaît « introuvable » : **Relier** permet de le retrouver.
+
+**Importer des fichiers** (même fiche) : glisser-déposer ou « Parcourir », 50 Mo au
+plus par fichier. Ils sont rangés dans `<dossier choisi>\<année>\` (dossier de
+l'entreprise, ou un dossier libre comme « Autres » ou « Sinistres »), puis liés à
+l'affaire. Rien n'est jamais écrasé : un nom déjà pris reçoit « (2) », et un fichier
+identique déjà présent dans ce dossier (même empreinte SHA-256) est lié sans être
+recopié. Seul le dossier de l'année peut être créé.
 
 Ce dossier n'est pas versionné. Sauvegarder l'outil, c'est copier ce dossier.
 

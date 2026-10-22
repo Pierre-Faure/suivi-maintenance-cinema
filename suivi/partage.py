@@ -8,6 +8,7 @@ Règles communes :
   les fonctions renvoient une valeur vide et l'écran le signale.
 """
 
+import hashlib
 import os
 import re
 import unicodedata
@@ -155,3 +156,80 @@ def montrer(chemin):
     # Syntaxe propre à l'Explorateur : /select,"chemin" (un nom de fichier
     # Windows ne peut pas contenir de guillemet).
     subprocess.Popen(f'explorer /select,"{chemin}"')  # noqa: S602
+
+
+# --- Import -------------------------------------------------------------------
+
+TAILLE_MAX = 50 * 1024 * 1024  # 50 Mo par fichier importé
+
+# Caractères interdits dans un nom de fichier Windows, et noms réservés.
+INTERDITS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+RESERVES = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
+
+
+def nom_sur(nom):
+    """Nom de fichier utilisable sous Windows, sans aucun chemin :
+    « ..\\..\\devis:v2.pdf » → « devis_v2.pdf »."""
+    nom = str(nom).replace("\\", "/").rsplit("/", 1)[-1]
+    nom = INTERDITS.sub("_", nom).strip().rstrip(". ")
+    if not nom:
+        return "document"
+    if nom.split(".", 1)[0].upper() in RESERVES:
+        nom = f"_{nom}"
+    return nom
+
+
+def empreinte(morceaux):
+    """Empreinte SHA-256 d'un contenu lu par morceaux."""
+    calcul = hashlib.sha256()
+    for morceau in morceaux:
+        calcul.update(morceau)
+    return calcul.hexdigest()
+
+
+def morceaux_du_fichier(chemin, taille=1024 * 1024):
+    with open(chemin, "rb") as fichier:
+        while morceau := fichier.read(taille):
+            yield morceau
+
+
+def deposer(envoi, dossier):
+    """Range un fichier envoyé par le navigateur dans `dossier` (créé s'il
+    manque ; son parent doit exister). Renvoie (chemin, copie).
+
+    - Si un fichier identique (même taille, même empreinte) est déjà dans le
+      dossier, rien n'est copié : on renvoie ce fichier et copie=False.
+    - Si le nom est pris par un autre fichier, on ajoute « (2) », « (3) »…
+    - Un fichier existant n'est jamais écrasé ; une copie interrompue est effacée.
+    """
+    dossier = Path(dossier)
+    dossier.mkdir(exist_ok=True)
+
+    signature = None
+    for entree in os.scandir(dossier):
+        try:
+            meme_taille = entree.is_file() and entree.stat().st_size == envoi.size
+        except OSError:
+            continue
+        if meme_taille:
+            signature = signature or empreinte(envoi.chunks())
+            if empreinte(morceaux_du_fichier(entree.path)) == signature:
+                return Path(entree.path), False
+
+    nom = Path(nom_sur(envoi.name))
+    cible, numero = dossier / nom.name, 2
+    while True:
+        try:
+            sortie = open(cible, "xb")  # « x » : échoue si le fichier existe
+            break
+        except FileExistsError:
+            cible = dossier / f"{nom.stem} ({numero}){nom.suffix}"
+            numero += 1
+    try:
+        with sortie:
+            for morceau in envoi.chunks():
+                sortie.write(morceau)
+    except BaseException:
+        cible.unlink(missing_ok=True)
+        raise
+    return cible, True

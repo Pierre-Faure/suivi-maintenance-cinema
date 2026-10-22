@@ -18,6 +18,7 @@ urlpatterns = [
     path("affaires/<int:pk>/actions/ajouter/", views.action_ajouter, name="action_ajouter"),
     path("affaires/<int:pk>/journal/ajouter/", views.note_ajouter, name="note_ajouter"),
     path("affaires/<int:pk>/documents/lier/", views.explorateur, name="explorateur"),
+    path("affaires/<int:pk>/documents/importer/", views.importer, name="importer"),
     path("documents/<int:pk>/ouvrir/", views.lien_ouvrir, name="lien_ouvrir"),
     path("documents/<int:pk>/montrer/", views.lien_montrer, name="lien_montrer"),
     path("documents/<int:pk>/retirer/", views.lien_retirer, name="lien_retirer"),
