@@ -3,8 +3,8 @@ Sauvegarde de la base, appelée par le lanceur à chaque démarrage.
 
 Deux niveaux :
 - une copie locale dans `data/sauvegardes/`, toujours ;
-- une copie sur le partage réseau, si son chemin est indiqué dans
-  `data/sauvegarde_reseau.txt` (fichier propre à chaque poste, non versionné).
+- une copie sur le partage réseau, dans le dossier technique réglé dans
+  l'outil (page Réglages), si une racine des documents est réglée.
 
 On garde les N copies les plus récentes de chaque côté.
 """
@@ -17,7 +17,6 @@ from pathlib import Path
 GARDER = 30
 PREFIXE = "db-"
 SUFFIXE = ".sqlite3"
-FICHIER_RESEAU = "sauvegarde_reseau.txt"
 
 
 def sauvegarder(base, dossier, garder=GARDER, maintenant=None):
@@ -62,20 +61,3 @@ def nettoyer(dossier, garder=GARDER):
     copies = sorted(Path(dossier).glob(f"{PREFIXE}*{SUFFIXE}"))
     for ancienne in copies[:-garder] if garder else copies:
         ancienne.unlink()
-
-
-def dossier_reseau(data_dir):
-    """Chemin du partage réseau lu dans `sauvegarde_reseau.txt`, ou None.
-
-    Le fichier contient une ligne : le chemin du dossier, par exemple
-    \\\\serveur\\partage\\Suivi\\sauvegardes. Les lignes vides et celles qui
-    commencent par # sont ignorées.
-    """
-    fichier = Path(data_dir) / FICHIER_RESEAU
-    if not fichier.exists():
-        return None
-    for ligne in fichier.read_text(encoding="utf-8-sig").splitlines():
-        ligne = ligne.strip().strip('"')
-        if ligne and not ligne.startswith("#"):
-            return Path(ligne)
-    return None

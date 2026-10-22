@@ -6,7 +6,8 @@ from email.utils import parseaddr
 from django import forms
 from django.utils import timezone
 
-from .models import Action, Affaire, Contact, EntreeJournal, Entreprise, Intervenant
+from .models import Action, Affaire, Contact, EntreeJournal, Entreprise, Intervenant, Reglages
+from .partage import HorsRacine, chemin_dans_racine
 
 
 def champ_date():
@@ -172,3 +173,41 @@ class IntervenantForm(forms.Form):
             if entreprise:
                 return entreprise, None
         raise forms.ValidationError("Ce choix n'existe plus : rechargez la page.")
+
+
+# --- Réglages et dossiers -----------------------------------------------------
+
+
+class ReglagesForm(forms.ModelForm):
+    class Meta:
+        model = Reglages
+        fields = ["racine", "dossier_technique"]
+
+    def clean_racine(self):
+        # Un chemin copié avec « Copier en tant que chemin d'accès » est entre guillemets.
+        return self.cleaned_data["racine"].strip().strip('"').rstrip("\\/")
+
+    def clean_dossier_technique(self):
+        nom = self.cleaned_data["dossier_technique"].strip().strip('"')
+        try:
+            chemin_dans_racine("racine", nom)
+        except HorsRacine:
+            raise forms.ValidationError(
+                "Indiquez un nom de dossier dans la racine, par exemple « _Suivi des affaires »."
+            ) from None
+        return nom
+
+
+class DossierEntrepriseForm(forms.Form):
+    """Choix du dossier d'une entreprise parmi les dossiers de la racine."""
+
+    dossier = forms.ChoiceField(label="Dossier sur le partage", required=False)
+
+    def __init__(self, *args, dossiers, actuel="", **kwargs):
+        super().__init__(*args, **kwargs)
+        choix = [("", "— Aucun —")] + [(nom, nom) for nom in dossiers]
+        if actuel and actuel not in dossiers:
+            # Dossier enregistré mais introuvable : on le garde visible, signalé.
+            choix.append((actuel, f"{actuel} (introuvable)"))
+        self.fields["dossier"].choices = choix
+        self.initial.setdefault("dossier", actuel)

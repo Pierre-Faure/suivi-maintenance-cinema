@@ -7,6 +7,7 @@ from . import views
 urlpatterns = [
     path("", views.accueil, name="accueil"),
     path("historique/", views.historique, name="historique"),
+    path("reglages/", views.reglages, name="reglages"),
     path("theme/", views.changer_theme, name="theme"),
     # Affaires
     path("affaires/nouvelle/", views.affaire_creer, name="affaire_creer"),
@@ -29,6 +30,8 @@ urlpatterns = [
     path("annuaire/<int:pk>/", views.entreprise_fiche, name="entreprise"),
     path("annuaire/<int:pk>/modifier/", views.entreprise_modifier, name="entreprise_modifier"),
     path("annuaire/<int:pk>/supprimer/", views.entreprise_supprimer, name="entreprise_supprimer"),
+    path("annuaire/<int:pk>/dossier/", views.entreprise_dossier, name="entreprise_dossier"),
+    path("annuaire/<int:pk>/dossier/ouvrir/", views.entreprise_ouvrir_dossier, name="entreprise_ouvrir_dossier"),
     path("annuaire/<int:pk>/contacts/nouveau/", views.contact_creer, name="contact_creer"),
     path("contacts/<int:pk>/modifier/", views.contact_modifier, name="contact_modifier"),
     path("contacts/<int:pk>/supprimer/", views.contact_supprimer, name="contact_supprimer"),

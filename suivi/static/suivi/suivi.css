@@ -26,6 +26,11 @@ nav form button[type="submit"]:focus {
   text-decoration: underline;
 }
 
+/* Entrées du menu sur une seule ligne, même dans une fenêtre étroite. */
+nav li {
+  white-space: nowrap;
+}
+
 /* Erreurs de formulaire produites par Django. */
 .errorlist {
   margin: 0 0 var(--pico-spacing);

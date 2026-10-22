@@ -43,8 +43,8 @@ C'est le fichier que vise l'icône du bureau (raccourci réglé sur « Exécuter
    il continue avec la version en place ;
 2. lance `uv run python manage.py lancer`, qui :
    - ouvre simplement le navigateur si l'outil tourne déjà ;
-   - sauvegarde la base dans `data/sauvegardes/` (30 copies gardées), puis sur le
-     partage réseau si `data/sauvegarde_reseau.txt` en donne le chemin ;
+   - sauvegarde la base dans `data/sauvegardes/` (30 copies gardées), puis dans le
+     dossier technique du partage si une racine des documents est réglée (page Réglages) ;
    - applique les migrations ;
    - démarre Waitress sur `127.0.0.1:8000` et ouvre le navigateur.
 
@@ -73,9 +73,12 @@ Tout est dans un seul dossier, `data/` par défaut (modifiable avec `DJANGO_DATA
 - `cle_secrete.txt` : la clé de signature des sessions, recréée si elle est perdue
   (il suffit alors de se reconnecter) ;
 - `sauvegardes/` : les copies de la base faites à chaque lancement ;
-- `sauvegarde_reseau.txt` (facultatif) : une ligne, le chemin du dossier de
-  sauvegarde sur le partage réseau ;
 - `lanceur.log` : le journal des lancements.
+
+Les documents (devis, factures…) restent sur le partage réseau : l'outil n'en
+garde que des liens, relatifs à la **racine des documents** réglée dans la page
+Réglages (par exemple `Z:\Bâtiment`). Le dossier technique de cette racine
+(`_Suivi des affaires` par défaut) reçoit une copie de chaque sauvegarde.
 
 Ce dossier n'est pas versionné. Sauvegarder l'outil, c'est copier ce dossier.
 

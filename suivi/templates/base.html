@@ -19,6 +19,7 @@
         <li><a href="{% url 'accueil' %}">Vue d'ensemble</a></li>
         <li><a href="{% url 'historique' %}">Historique</a></li>
         <li><a href="{% url 'annuaire' %}">Annuaire</a></li>
+        <li><a href="{% url 'reglages' %}">Réglages</a></li>
         <li>
           {# Chaque clic passe au thème suivant : système → clair → sombre. #}
           <form method="post" action="{% url 'theme' %}">

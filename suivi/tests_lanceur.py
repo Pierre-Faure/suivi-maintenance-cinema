@@ -10,7 +10,8 @@ from django.core.management.base import CommandError
 from django.test import SimpleTestCase, TestCase, override_settings
 
 from .management.commands.lancer import Command, fermer_journal
-from .sauvegarde import copier_vers, dossier_reseau, nettoyer, sauvegarder
+from .models import Reglages
+from .sauvegarde import copier_vers, nettoyer, sauvegarder
 
 COMMANDE = "suivi.management.commands.lancer"
 
@@ -78,27 +79,6 @@ class SauvegardeTests(Dossier):
         self.assertEqual(cible.name, copie.name)
 
 
-class DossierReseauTests(Dossier):
-    def ecrire(self, contenu):
-        (self.dossier / "sauvegarde_reseau.txt").write_text(contenu, encoding="utf-8")
-
-    def test_absent(self):
-        self.assertIsNone(dossier_reseau(self.dossier))
-
-    def test_vide_ou_commentaires(self):
-        self.ecrire("\n# chemin du partage\n\n")
-        self.assertIsNone(dossier_reseau(self.dossier))
-
-    def test_chemin(self):
-        self.ecrire('# partage du cinéma\n"\\\\serveur\\partage\\Suivi"\n')
-        self.assertEqual(dossier_reseau(self.dossier), Path("\\\\serveur\\partage\\Suivi"))
-
-    def test_fichier_enregistre_par_le_bloc_notes(self):
-        # Le Bloc-notes peut ajouter une marque d'encodage (BOM) en début de fichier.
-        (self.dossier / "sauvegarde_reseau.txt").write_bytes("\ufeffD:\\Sauvegardes\n".encode("utf-8"))
-        self.assertEqual(dossier_reseau(self.dossier), Path("D:\\Sauvegardes"))
-
-
 class CommandeLancerTests(TestCase):
     """La commande, sans démarrer de vrai serveur ni de navigateur."""
 
@@ -148,14 +128,52 @@ class CommandeLancerTests(TestCase):
                 call_command("lancer", stdout=StringIO())
         serve.assert_not_called()
 
-    def test_sauvegarde_puis_partage_injoignable(self):
+    def sauvegarder(self):
+        """Lance seulement l'étape de sauvegarde ; renvoie ce qui est affiché."""
         base = self.data / "db.sqlite3"
         sqlite3.connect(base).close()
-        (self.data / "sauvegarde_reseau.txt").write_text(str(self.data / "fichier" / "pas-un-dossier"))
-        (self.data / "fichier").write_text("")  # un fichier là où on attend un dossier
         commande = Command(stdout=StringIO())
         commande.configurer_journal(self.data / "lanceur.log")
         commande.sauvegarder(base, self.data)
-        sortie = commande.stdout.getvalue()
+        return commande.stdout.getvalue()
+
+    def test_sans_racine_copie_locale_seulement(self):
+        sortie = self.sauvegarder()
         self.assertEqual(len(list((self.data / "sauvegardes").iterdir())), 1)
+        self.assertNotIn("partage", sortie)
+
+    def test_copie_dans_le_dossier_technique(self):
+        racine = self.data / "Batiment"
+        racine.mkdir()
+        Reglages(racine=str(racine)).save()
+        sortie = self.sauvegarder()
+        copies = list((racine / "_Suivi des affaires" / "sauvegardes").iterdir())
+        self.assertEqual(len(copies), 1)
+        self.assertIn("Copie sur le partage", sortie)
+
+    def test_racine_absente_rien_n_est_cree(self):
+        racine = self.data / "Batimen"  # faute de frappe, ou lecteur déconnecté
+        Reglages(racine=str(racine)).save()
+        sortie = self.sauvegarder()
+        self.assertFalse(racine.exists())
+        self.assertIn("ATTENTION : racine des documents introuvable", sortie)
+        self.assertEqual(len(list((self.data / "sauvegardes").iterdir())), 1)
+
+    def test_partage_injoignable(self):
+        racine = self.data / "Batiment"
+        racine.mkdir()
+        # Un fichier là où le dossier technique devrait être : la copie échoue.
+        (racine / "_Suivi des affaires").write_text("")
+        Reglages(racine=str(racine)).save()
+        sortie = self.sauvegarder()
         self.assertIn("ATTENTION : partage injoignable", sortie)
+        self.assertEqual(len(list((self.data / "sauvegardes").iterdir())), 1)
+
+    def test_table_des_reglages_absente(self):
+        # Premier lancement d'une version qui ajoute les réglages : sauvegarde
+        # faite avant la migration, la table n'existe pas encore.
+        from django.db import OperationalError
+
+        with mock.patch.object(Reglages.objects, "filter", side_effect=OperationalError("no such table")):
+            sortie = self.sauvegarder()
+        self.assertIn("Sauvegarde :", sortie)

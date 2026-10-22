@@ -23,6 +23,39 @@
   <a href="{% url 'entreprise_supprimer' entreprise.pk %}">Supprimer</a>
 </p>
 
+{# --- Dossier sur le partage --------------------------------------------- #}
+<h2>Dossier</h2>
+{% if dossier.etat == "ok" %}
+<form method="post" action="{% url 'entreprise_ouvrir_dossier' entreprise.pk %}" class="actions">
+  {% csrf_token %}
+  <code>{{ entreprise.dossier }}</code>
+  <button type="submit">Ouvrir le dossier</button>
+  <a href="{% url 'entreprise_dossier' entreprise.pk %}">Changer</a>
+</form>
+{% elif dossier.etat == "introuvable" %}
+<p class="message error">
+  Dossier « {{ entreprise.dossier }} » introuvable : renommé ou déplacé ?
+  <a href="{% url 'entreprise_dossier' entreprise.pk %}">Choisir le dossier</a>
+</p>
+{% elif dossier.etat == "a_rattacher" %}
+  {% if dossier.proposition %}
+  <form method="post" action="{% url 'entreprise_dossier' entreprise.pk %}" class="actions">
+    {% csrf_token %}
+    <input type="hidden" name="dossier" value="{{ dossier.proposition }}">
+    <span>Dossier proposé : <code>{{ dossier.proposition }}</code></span>
+    <button type="submit">Rattacher</button>
+    <a href="{% url 'entreprise_dossier' entreprise.pk %}">Choisir un autre dossier</a>
+  </form>
+  {% else %}
+  <p>Aucun dossier rattaché. <a href="{% url 'entreprise_dossier' entreprise.pk %}">Choisir le dossier</a></p>
+  {% endif %}
+{% elif dossier.etat == "partage_indisponible" %}
+<p class="message error">Partage indisponible ({{ dossier.racine }}) : vérifiez qu'il est connecté.
+  {% if entreprise.dossier %}Dossier enregistré : <code>{{ entreprise.dossier }}</code>.{% endif %}</p>
+{% else %}
+<p>La racine des documents n'est pas réglée. <a href="{% url 'reglages' %}">Réglages</a></p>
+{% endif %}
+
 <h2>Contacts</h2>
 {% with contacts=entreprise.contacts.all %}
 {% if contacts %}

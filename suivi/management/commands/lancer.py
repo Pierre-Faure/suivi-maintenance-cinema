@@ -5,7 +5,8 @@ Lance l'outil : la commande appelée par l'icône du bureau (via lancer.cmd).
 
 Étapes :
 1. si l'outil tourne déjà, ouvre simplement le navigateur ;
-2. sauvegarde la base (copie locale, puis partage réseau si configuré) ;
+2. sauvegarde la base (copie locale, puis dossier technique du partage si une
+   racine des documents est réglée) ;
 3. applique les migrations ;
 4. démarre le serveur Waitress sur ce poste uniquement (127.0.0.1) ;
 5. ouvre le navigateur dès que le serveur répond.
@@ -23,11 +24,14 @@ from pathlib import Path
 
 from django.conf import settings
 from django.core.management import call_command
+from django.db import DatabaseError
 from django.core.management.base import BaseCommand, CommandError
 from django.core.wsgi import get_wsgi_application
 from waitress import serve
 
-from suivi.sauvegarde import copier_vers, dossier_reseau, sauvegarder
+from suivi.models import Reglages
+from suivi.partage import accessible
+from suivi.sauvegarde import copier_vers, sauvegarder
 
 journal = logging.getLogger("lanceur")
 
@@ -37,6 +41,19 @@ def port_occupe(port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(1)
         return s.connect_ex(("127.0.0.1", port)) == 0
+
+
+def reglages_partage():
+    """(racine, dossier des sauvegardes) d'après les Réglages, ou (None, None).
+
+    Lu AVANT les migrations : au premier lancement d'une version qui ajoute les
+    réglages, la table n'existe pas encore. On se contente alors de la copie locale.
+    """
+    try:
+        reglages = Reglages.actuels()
+    except DatabaseError:
+        return None, None
+    return reglages.chemin_racine, reglages.chemin_sauvegardes
 
 
 def ouvrir_quand_pret(url, port, delai=30):
@@ -116,8 +133,17 @@ class Command(BaseCommand):
             )
             return
 
-        reseau = dossier_reseau(data_dir)
+        racine, reseau = reglages_partage()
         if reseau is None:
+            return
+        if not accessible(racine):
+            # On ne crée jamais l'arborescence d'une racine absente (faute de
+            # frappe, lecteur Z: déconnecté) : seul le dossier technique est créé.
+            self.dire(
+                f"ATTENTION : racine des documents introuvable ({racine}). "
+                "La sauvegarde locale est faite ; l'outil démarre.",
+                logging.WARNING,
+            )
             return
         try:
             copier_vers(copie, reseau)

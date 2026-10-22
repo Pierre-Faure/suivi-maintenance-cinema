@@ -1,10 +1,11 @@
 """
 Modèles métier du suivi des affaires.
 
-Six objets :
-- l'annuaire : Entreprise et Contact ;
+Objets :
+- l'annuaire : Entreprise (avec son dossier sur le partage) et Contact ;
 - le suivi : Affaire, Intervenant (une entreprise sur une affaire),
-  Action (une chose datée à faire) et EntreeJournal.
+  Action (une chose datée à faire) et EntreeJournal ;
+- les Réglages du poste (racine des documents, dossier technique).
 
 Règles portées par les modèles :
 - passer une affaire en « clos » remplit la date de clôture ; la rouvrir la vide ;
@@ -12,6 +13,8 @@ Règles portées par les modèles :
 - cocher une action consigne « fait » dans le journal ; la décocher retire cette trace ;
 - une entreprise ou un contact utilisé dans une affaire ne peut pas être supprimé.
 """
+
+from pathlib import Path
 
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
@@ -25,6 +28,8 @@ class Entreprise(models.Model):
     telephone = models.CharField("téléphone", max_length=50, blank=True)
     email = models.EmailField("email", blank=True)
     notes = models.TextField("notes", blank=True, help_text="Contrat, astreinte, horaires…")
+    # Relatif à la racine des documents (Réglages) : « Otis », pas « Z:\Bâtiment\Otis ».
+    dossier = models.CharField("dossier sur le partage", max_length=300, blank=True)
 
     class Meta:
         ordering = ["nom"]
@@ -55,6 +60,54 @@ class Contact(models.Model):
 
     def __str__(self):
         return f"{self.nom} ({self.entreprise})"
+
+
+# --- Réglages -----------------------------------------------------------------
+
+
+class Reglages(models.Model):
+    """Réglages propres au poste, modifiables dans l'outil. Une seule ligne."""
+
+    racine = models.CharField(
+        "racine des documents",
+        max_length=500,
+        blank=True,
+        help_text="Dossier du partage qui contient un dossier par entreprise, "
+        "par exemple Z:\\Bâtiment. Laisser vide si le partage n'est pas utilisé.",
+    )
+    dossier_technique = models.CharField(
+        "dossier technique",
+        max_length=200,
+        default="_Suivi des affaires",
+        help_text="Dans la racine : sauvegardes de l'outil. Créé s'il n'existe pas.",
+    )
+
+    class Meta:
+        verbose_name = "réglages"
+        verbose_name_plural = "réglages"
+
+    def __str__(self):
+        return "Réglages"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1  # toujours la même ligne
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def actuels(cls):
+        """Les réglages, sans rien écrire en base : valeurs par défaut si absents."""
+        return cls.objects.filter(pk=1).first() or cls(pk=1)
+
+    @property
+    def chemin_racine(self):
+        return Path(self.racine.strip().strip('"')) if self.racine.strip() else None
+
+    @property
+    def chemin_sauvegardes(self):
+        """Dossier des sauvegardes sur le partage, ou None si pas de racine."""
+        if not self.chemin_racine or not self.dossier_technique.strip():
+            return None
+        return self.chemin_racine / self.dossier_technique.strip() / "sauvegardes"
 
 
 # --- Suivi --------------------------------------------------------------------

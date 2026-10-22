@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block titre %}Réglages · {% endblock %}
+
+{% block contenu %}
+<h1>Réglages</h1>
+
+<h2>Documents</h2>
+{% if etat.racine %}
+  {% if etat.accessible %}
+  <p class="message">
+    Racine accessible : {{ etat.nb_dossiers }} dossier{{ etat.nb_dossiers|pluralize }}.
+    {{ etat.nb_rattachees }} entreprise{{ etat.nb_rattachees|pluralize }} sur {{ etat.nb_entreprises }}
+    rattachée{{ etat.nb_rattachees|pluralize }} à son dossier.
+    {% if etat.sauvegardes %}<br>Sauvegardes copiées dans : <code>{{ etat.sauvegardes }}</code>{% endif %}
+  </p>
+  {% else %}
+  <p class="message error">
+    Racine introuvable ou partage non connecté : <code>{{ etat.racine }}</code>.
+    L'outil fonctionne quand même ; les sauvegardes restent sur ce poste.
+  </p>
+  {% endif %}
+{% else %}
+<p>Aucune racine réglée : les sauvegardes restent sur ce poste et les dossiers des entreprises ne sont pas utilisés.</p>
+{% endif %}
+
+<form method="post" novalidate>
+  {% csrf_token %}
+  {{ form }}
+  <p class="actions"><button type="submit">Enregistrer</button></p>
+</form>
+{% endblock %}

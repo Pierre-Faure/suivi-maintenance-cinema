@@ -21,13 +21,16 @@ from .forms import (
     ActionForm,
     AffaireForm,
     ContactForm,
+    DossierEntrepriseForm,
     EntrepriseForm,
     IntervenantContactForm,
     IntervenantForm,
     NoteForm,
     NoteModifierForm,
+    ReglagesForm,
 )
-from .models import Action, Affaire, Contact, EntreeJournal, Entreprise, Intervenant
+from .models import Action, Affaire, Contact, EntreeJournal, Entreprise, Intervenant, Reglages
+from .partage import HorsRacine, accessible, chemin_dans_racine, ouvrir, proposer_dossier, sous_dossiers
 from .vue_ensemble import vue_ensemble
 
 
@@ -409,8 +412,136 @@ def entreprise_fiche(request, pk):
     return render(
         request,
         "suivi/entreprise.html",
-        {"entreprise": entreprise, "affaires": ouvertes + closes},
+        {
+            "entreprise": entreprise,
+            "affaires": ouvertes + closes,
+            "dossier": etat_dossier(entreprise, Reglages.actuels()),
+        },
     )
+
+
+# --- Dossiers des entreprises sur le partage ----------------------------------
+
+
+def dossiers_disponibles(reglages, sauf=None):
+    """Dossiers de la racine qui peuvent être rattachés à une entreprise :
+    tous, sauf le dossier technique et ceux déjà pris par une autre entreprise."""
+    pris = set(Entreprise.objects.exclude(pk=getattr(sauf, "pk", None)).values_list("dossier", flat=True))
+    technique = reglages.dossier_technique.strip().casefold()
+    return [
+        nom
+        for nom in sous_dossiers(reglages.chemin_racine)
+        if nom not in pris and nom.casefold() != technique
+    ]
+
+
+def etat_dossier(entreprise, reglages):
+    """Ce que la fiche affiche à propos du dossier de l'entreprise.
+
+    « etat » vaut : sans_racine, partage_indisponible, ok, introuvable, a_rattacher.
+    """
+    racine = reglages.chemin_racine
+    if racine is None:
+        return {"etat": "sans_racine"}
+    if not accessible(racine):
+        return {"etat": "partage_indisponible", "racine": racine}
+    if entreprise.dossier:
+        try:
+            chemin = chemin_dans_racine(racine, entreprise.dossier)
+        except HorsRacine:
+            return {"etat": "introuvable"}
+        return {"etat": "ok" if accessible(chemin) else "introuvable", "chemin": chemin}
+    return {
+        "etat": "a_rattacher",
+        "proposition": proposer_dossier(entreprise.nom, dossiers_disponibles(reglages, entreprise)),
+    }
+
+
+def entreprise_dossier(request, pk):
+    """Choisit le dossier de l'entreprise parmi ceux de la racine.
+
+    Le bouton « Rattacher » de la fiche envoie directement le dossier proposé ici.
+    """
+    entreprise = get_object_or_404(Entreprise, pk=pk)
+    reglages = Reglages.actuels()
+    retour = reverse("entreprise", args=[pk])
+    if reglages.chemin_racine is None:
+        messages.error(request, "Réglez d'abord la racine des documents.")
+        return redirect("reglages")
+
+    dossiers = dossiers_disponibles(reglages, entreprise)
+    if request.method == "POST":
+        form = DossierEntrepriseForm(request.POST, dossiers=dossiers, actuel=entreprise.dossier)
+        if form.is_valid():
+            entreprise.dossier = form.cleaned_data["dossier"]
+            entreprise.save(update_fields=["dossier"])
+            if entreprise.dossier:
+                messages.success(request, f"Dossier rattaché : {entreprise.dossier}")
+            else:
+                messages.success(request, "Dossier détaché.")
+            return redirect(retour)
+    else:
+        if not accessible(reglages.chemin_racine):
+            messages.error(
+                request,
+                f"Le partage est indisponible ({reglages.chemin_racine}) : "
+                "vérifiez qu'il est connecté, puis réessayez.",
+            )
+            return redirect(retour)
+        form = DossierEntrepriseForm(dossiers=dossiers, actuel=entreprise.dossier)
+    return formulaire(request, form, f"Dossier de {entreprise}", retour)
+
+
+def entreprise_ouvrir_dossier(request, pk):
+    """Ouvre le dossier de l'entreprise dans l'Explorateur Windows.
+
+    Le chemin vient de la base (jamais de la requête) et reste dans la racine.
+    """
+    entreprise = get_object_or_404(Entreprise, pk=pk)
+    retour = reverse("entreprise", args=[pk])
+    if request.method != "POST":
+        return redirect(retour)
+    etat = etat_dossier(entreprise, Reglages.actuels())
+    if etat["etat"] != "ok":
+        messages.error(request, "Dossier introuvable ou partage indisponible.")
+        return redirect(retour)
+    try:
+        ouvrir(etat["chemin"])
+    except OSError as erreur:
+        messages.error(request, f"Impossible d'ouvrir le dossier : {erreur}")
+    return redirect(retour)
+
+
+# --- Réglages -----------------------------------------------------------------
+
+
+def reglages(request):
+    reglages_actuels = Reglages.actuels()
+    if request.method == "POST":
+        form = ReglagesForm(request.POST, instance=reglages_actuels)
+        if form.is_valid():
+            reglages_actuels = form.save()
+            messages.success(request, "Réglages enregistrés.")
+            racine = reglages_actuels.chemin_racine
+            if racine and not accessible(racine):
+                messages.warning(
+                    request,
+                    f"La racine {racine} est introuvable ou le partage n'est pas connecté. "
+                    "L'outil fonctionne quand même ; les documents seront disponibles "
+                    "quand elle sera accessible.",
+                )
+            return redirect("reglages")
+    else:
+        form = ReglagesForm(instance=reglages_actuels)
+
+    racine = reglages_actuels.chemin_racine
+    etat = {"racine": racine, "accessible": bool(racine) and accessible(racine)}
+    if etat["accessible"]:
+        etat["nb_dossiers"] = len(sous_dossiers(racine))
+        etat["sauvegardes"] = reglages_actuels.chemin_sauvegardes
+    etat["nb_entreprises"] = Entreprise.objects.count()
+    etat["nb_rattachees"] = Entreprise.objects.exclude(dossier="").count()
+    return render(request, "suivi/reglages.html", {"form": form, "etat": etat})
 
 
 def entreprise_creer(request):
