@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{# Explorateur intégré : parcourir le partage et lier des fichiers à une affaire. #}
+
+{% block titre %}Lier des fichiers · {% endblock %}
+
+{% block contenu %}
+<p><a href="{{ fiche }}">← {{ affaire.titre }}</a></p>
+
+{% if a_relier %}
+<h1>Relier « {{ a_relier.nom }} »</h1>
+<p>Le fichier n'est plus à son ancien emplacement (<code>{{ a_relier.chemin }}</code>). Choisissez le bon fichier.</p>
+{% else %}
+<h1>Lier des fichiers</h1>
+{% endif %}
+
+{% if raccourcis|length > 1 or raccourcis and courant != raccourcis.0.1 %}
+<p class="actions"><small>Dossiers des entreprises de l'affaire :</small>
+  {% for nom, chemin in raccourcis %}
+  <a href="?d={{ chemin|urlencode }}{% if a_relier %}&amp;relier={{ a_relier.pk }}{% endif %}">{{ nom }}</a>
+  {% endfor %}
+</p>
+{% endif %}
+
+<nav aria-label="breadcrumb">
+  <ul>
+    {% for nom, chemin in ariane %}
+    {% if forloop.last %}<li><strong>{{ nom }}</strong></li>
+    {% else %}<li><a href="?d={{ chemin|urlencode }}{% if a_relier %}&amp;relier={{ a_relier.pk }}{% endif %}">{{ nom }}</a></li>{% endif %}
+    {% endfor %}
+  </ul>
+</nav>
+
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% if a_relier %}<input type="hidden" name="relier" value="{{ a_relier.pk }}">{% endif %}
+  <table class="explorateur">
+    <tbody>
+      {% if parent is not None %}
+      <tr>
+        <td></td>
+        <td colspan="3"><a href="?d={{ parent|urlencode }}{% if a_relier %}&amp;relier={{ a_relier.pk }}{% endif %}">↑ Dossier parent</a></td>
+      </tr>
+      {% endif %}
+      {% for dossier in dossiers %}
+      <tr>
+        <td>📁</td>
+        <td colspan="3"><a href="?d={{ dossier.chemin|urlencode }}{% if a_relier %}&amp;relier={{ a_relier.pk }}{% endif %}">{{ dossier.nom }}</a></td>
+      </tr>
+      {% endfor %}
+      {% for fichier in fichiers %}
+      <tr{% if fichier.executable %} class="faite"{% endif %}>
+        <td>
+          {% if fichier.executable %}
+          <span title="Les programmes ne peuvent pas être liés">—</span>
+          {% elif a_relier %}
+          <input type="radio" name="fichiers" value="{{ fichier.chemin }}" id="f{{ forloop.counter }}" aria-label="{{ fichier.nom }}">
+          {% elif fichier.deja_lie %}
+          <input type="checkbox" checked disabled aria-label="{{ fichier.nom }} (déjà lié)">
+          {% else %}
+          <input type="checkbox" name="fichiers" value="{{ fichier.chemin }}" id="f{{ forloop.counter }}" aria-label="{{ fichier.nom }}">
+          {% endif %}
+        </td>
+        <td><label for="f{{ forloop.counter }}">{{ fichier.nom }}</label>{% if fichier.deja_lie and not a_relier %} <small>· déjà lié</small>{% endif %}</td>
+        <td><small>{{ fichier.modifie|date:"d/m/Y H:i" }}</small></td>
+        <td><small>{{ fichier.taille|filesizeformat }}</small></td>
+      </tr>
+      {% endfor %}
+      {% if not dossiers and not fichiers %}
+      <tr><td></td><td colspan="3">Dossier vide.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+  <p class="actions">
+    {% if fichiers %}<button type="submit">{% if a_relier %}Relier à ce fichier{% else %}Lier les fichiers cochés{% endif %}</button>{% endif %}
+    <a href="{{ fiche }}">Annuler</a>
+  </p>
+</form>
+{% endblock %}

@@ -8,8 +8,8 @@ Outil personnel : un seul utilisateur, sur son PC. Objectif : savoir en moins
 d'une minute où en est chaque affaire et ce qu'il y a à faire aujourd'hui.
 
 **État :** MVP en cours de finalisation : vue d'ensemble, affaires (entreprises,
-actions, journal), annuaire, historique et recherche, lanceur avec sauvegarde
-et mises à jour.
+actions, journal, documents liés), annuaire, historique et recherche, lanceur
+avec sauvegarde et mises à jour.
 
 ## Pile
 
@@ -79,6 +79,13 @@ Les documents (devis, factures…) restent sur le partage réseau : l'outil n'en
 garde que des liens, relatifs à la **racine des documents** réglée dans la page
 Réglages (par exemple `Z:\Bâtiment`). Le dossier technique de cette racine
 (`_Suivi des affaires` par défaut) reçoit une copie de chaque sauvegarde.
+
+Sur la fiche d'une affaire, **Lier des fichiers** ouvre un explorateur intégré
+qui part du dossier de l'entreprise. L'outil ne fait qu'ouvrir les fichiers liés
+(dans leur application) ou montrer leur dossier dans l'Explorateur Windows ; il ne
+modifie, ne déplace et ne supprime jamais rien sur le partage. Les programmes
+(`.exe`, `.bat`, `.lnk`…) ne peuvent pas être liés ni ouverts. Un fichier renommé
+ou déplacé apparaît « introuvable » : **Relier** permet de le retrouver.
 
 Ce dossier n'est pas versionné. Sauvegarder l'outil, c'est copier ce dossier.
 

@@ -1,0 +1,247 @@
+/*
+ * Retouches de Pico.css propres à l'outil.
+ * Garder ce fichier court : Pico fait l'essentiel.
+ */
+
+/* Boutons du menu (thème, déconnexion) : des formulaires (POST),
+   affichés comme des liens. Sélecteur précis : il doit l'emporter sur
+   le style des boutons de Pico. */
+nav form {
+  margin: 0;
+}
+
+nav form button[type="submit"] {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--pico-primary);
+  font-weight: inherit;
+}
+
+nav form button[type="submit"]:hover,
+nav form button[type="submit"]:focus {
+  background: none;
+  box-shadow: none;
+  text-decoration: underline;
+}
+
+/* Entrées du menu sur une seule ligne, même dans une fenêtre étroite. */
+nav li {
+  white-space: nowrap;
+}
+
+/* Erreurs de formulaire produites par Django. */
+.errorlist {
+  margin: 0 0 var(--pico-spacing);
+  padding: 0;
+  color: var(--pico-del-color);
+}
+
+.errorlist li {
+  list-style: none;
+}
+
+/* Page de connexion : carte étroite et centrée. */
+.connexion {
+  max-width: 26rem;
+  margin-inline: auto;
+}
+
+/* Boutons et liens d'action côte à côte. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--pico-spacing);
+}
+
+.actions button,
+.actions [role="button"] {
+  margin: 0;
+  width: auto;
+}
+
+/* Bouton de suppression, en rouge. */
+button.danger {
+  background-color: var(--pico-del-color);
+  border-color: var(--pico-del-color);
+}
+
+/* Messages de confirmation (vert) ou d'erreur (rouge), après une action. */
+.message {
+  padding: calc(var(--pico-spacing) / 2) var(--pico-spacing);
+  border-left: 4px solid var(--pico-ins-color);
+  background: var(--pico-card-background-color);
+}
+
+.message.error {
+  border-left-color: var(--pico-del-color);
+}
+
+/* Statut d'une affaire : une pastille. */
+.statut {
+  display: inline-block;
+  padding: 0 0.6em;
+  border: 1px solid currentColor;
+  border-radius: 1em;
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+.statut-en_cours {
+  color: var(--pico-primary);
+}
+
+.statut-en_attente {
+  color: #c98a00;
+}
+
+.statut-clos {
+  color: var(--pico-muted-color);
+}
+
+/* Actions d'une affaire. */
+td form {
+  margin: 0;
+}
+
+button.case {
+  margin: 0;
+  padding: 0 0.2em;
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 1.4em;
+  line-height: 1;
+}
+
+tr.en-retard td {
+  color: var(--pico-del-color);
+}
+
+tr.faite td {
+  color: var(--pico-muted-color);
+}
+
+/* Journal : une note par bloc ; entrées automatiques plus discrètes. */
+article.note {
+  margin-bottom: var(--pico-spacing);
+  padding: calc(var(--pico-spacing) / 2) var(--pico-spacing);
+}
+
+article.note p {
+  margin: 0.25em 0 0;
+}
+
+article.note .actions {
+  float: right;
+  font-size: 0.85em;
+}
+
+article.note.auto {
+  box-shadow: none;
+  background: none;
+  color: var(--pico-muted-color);
+  font-size: 0.9em;
+}
+
+/* Blocs repliables « Ajouter… » sous chaque section. */
+details {
+  margin-bottom: calc(var(--pico-spacing) * 2);
+}
+
+/* Vue d'ensemble : un bloc par groupe, une ligne par affaire. */
+section.bloc {
+  margin-bottom: calc(var(--pico-spacing) * 2);
+}
+
+section.bloc h2 small {
+  color: var(--pico-muted-color);
+  font-weight: normal;
+}
+
+section.retard h2,
+.retard-jours {
+  color: var(--pico-del-color);
+}
+
+section.rien-de-prevu h2 {
+  color: var(--pico-muted-color);
+}
+
+/* Largeurs fixes : les colonnes restent alignées d'un bloc à l'autre. */
+section.bloc table {
+  table-layout: fixed;
+}
+
+td.col-case {
+  width: 3rem;
+}
+
+td.col-action {
+  width: 38%;
+}
+
+td.col-affaire {
+  width: 24%;
+}
+
+td.col-statut {
+  width: 8rem;
+}
+
+td.col-affaire {
+  font-weight: 600;
+}
+
+/* « +2 » : autres actions à faire sur l'affaire. */
+.autres {
+  margin-left: 0.3em;
+  padding: 0 0.4em;
+  border-radius: 1em;
+  background: var(--pico-muted-border-color);
+}
+
+/* Boutons qui doivent ressembler à des liens (ouvrir un document, retirer…) :
+   ce sont des formulaires POST, pour la sécurité. */
+button.lien {
+  margin: 0;
+  padding: 0;
+  width: auto;
+  border: none;
+  background: none;
+  color: var(--pico-primary);
+  font-size: inherit;
+  font-weight: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+button.lien:hover,
+button.lien:focus {
+  background: none;
+  box-shadow: none;
+  color: var(--pico-primary-hover);
+}
+
+td .actions form {
+  display: inline;
+}
+
+/* Document introuvable : barré, en rouge. */
+tr.introuvable td:first-child span {
+  color: var(--pico-del-color);
+  text-decoration: line-through;
+}
+
+/* Explorateur intégré. */
+table.explorateur td:first-child {
+  width: 2.5rem;
+  text-align: center;
+}
+
+table.explorateur input {
+  margin: 0;
+}

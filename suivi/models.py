@@ -5,6 +5,7 @@ Objets :
 - l'annuaire : Entreprise (avec son dossier sur le partage) et Contact ;
 - le suivi : Affaire, Intervenant (une entreprise sur une affaire),
   Action (une chose datée à faire) et EntreeJournal ;
+- les Liens d'une affaire vers des fichiers du partage (jamais de copie) ;
 - les Réglages du poste (racine des documents, dossier technique).
 
 Règles portées par les modèles :
@@ -14,7 +15,7 @@ Règles portées par les modèles :
 - une entreprise ou un contact utilisé dans une affaire ne peut pas être supprimé.
 """
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
@@ -369,3 +370,48 @@ class EntreeJournal(models.Model):
 
     def __str__(self):
         return f"{self.horodatage:%d/%m/%Y} — {self.texte[:50]}"
+
+
+class Lien(models.Model):
+    """Un lien d'une affaire vers un fichier du partage. L'outil ne copie rien :
+    retirer un lien ne touche jamais au fichier."""
+
+    affaire = models.ForeignKey(
+        Affaire,
+        on_delete=models.CASCADE,
+        related_name="liens",
+        verbose_name="affaire",
+    )
+    # Relatif à la racine des documents, avec des « / » : « OTIS/2026/devis.pdf ».
+    chemin = models.CharField("chemin", max_length=500)
+    ajoute_le = models.DateTimeField("ajouté le", auto_now_add=True)
+
+    class Meta:
+        ordering = ["-ajoute_le"]
+        verbose_name = "lien vers un document"
+        verbose_name_plural = "liens vers des documents"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["affaire", "chemin"],
+                name="lien_unique_par_affaire",
+                violation_error_message="Ce fichier est déjà lié à l'affaire.",
+            )
+        ]
+
+    def __str__(self):
+        return self.nom
+
+    @property
+    def nom(self):
+        return PurePosixPath(self.chemin).name
+
+    @property
+    def dossier(self):
+        """« OTIS › 2026 » : où se trouve le fichier, pour l'affichage."""
+        return " › ".join(PurePosixPath(self.chemin).parent.parts)
+
+    @property
+    def dossier_relatif(self):
+        """Dossier du fichier, relatif à la racine (« » pour la racine elle-même)."""
+        parent = PurePosixPath(self.chemin).parent
+        return "" if str(parent) == "." else parent.as_posix()

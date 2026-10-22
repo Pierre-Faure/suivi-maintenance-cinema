@@ -11,6 +11,8 @@ Les adresses qui ne font qu'enregistrer (cocher, ajouter depuis la fiche)
 renvoient vers la fiche si on les ouvre directement, au lieu d'une erreur.
 """
 
+from datetime import datetime, timezone as tz
+
 from django.contrib import messages
 from django.db.models import ProtectedError, Q
 from django.shortcuts import get_object_or_404, redirect, render
@@ -29,8 +31,19 @@ from .forms import (
     NoteModifierForm,
     ReglagesForm,
 )
-from .models import Action, Affaire, Contact, EntreeJournal, Entreprise, Intervenant, Reglages
-from .partage import HorsRacine, accessible, chemin_dans_racine, ouvrir, proposer_dossier, sous_dossiers
+from .models import Action, Affaire, Contact, EntreeJournal, Entreprise, Intervenant, Lien, Reglages
+from .partage import (
+    HorsRacine,
+    accessible,
+    chemin_dans_racine,
+    est_executable,
+    lister,
+    montrer,
+    ouvrir,
+    proposer_dossier,
+    relatif,
+    sous_dossiers,
+)
 from .vue_ensemble import vue_ensemble
 
 
@@ -87,7 +100,7 @@ def historique(request):
     """Toutes les affaires, ouvertes et closes, avec recherche et filtre par statut.
 
     La recherche porte sur le titre, le point de situation, le journal, les
-    actions, et le nom des entreprises et contacts. La plus récemment modifiée
+    actions, le nom des entreprises et contacts, et le nom des documents liés. La plus récemment modifiée
     d'abord.
     """
     recherche = request.GET.get("q", "").strip()
@@ -109,6 +122,7 @@ def historique(request):
             | Q(actions__quoi__icontains=recherche)
             | Q(intervenants__entreprise__nom__icontains=recherche)
             | Q(intervenants__contact__nom__icontains=recherche)
+            | Q(liens__chemin__icontains=recherche)
         ).distinct()  # une affaire trouvée par plusieurs chemins n'apparaît qu'une fois
 
     affaires = list(affaires.order_by("-modifie_le"))
@@ -159,6 +173,7 @@ def fiche_affaire(request, affaire, **formulaires):
         .select_related("avec_qui__entreprise")
         .order_by("-faite_le", "-date"),
         "journal": affaire.journal.all(),
+        "documents": documents_affaire(affaire, Reglages.actuels()),
         "annuaire_vide": not Entreprise.objects.exists(),
         "form_action": formulaires.get("form_action") or ActionForm(affaire=affaire),
         # Lien « Ajouter une action » de la vue d'ensemble : formulaire ouvert.
@@ -668,3 +683,209 @@ def contact_supprimer(request, pk):
         retour,
         impossible,
     )
+
+
+# --- Documents : liens vers les fichiers du partage ---------------------------
+
+
+def documents_affaire(affaire, reglages):
+    """Les liens de l'affaire, chacun marqué « trouve » ou non.
+
+    Si le partage est indisponible, on ne vérifie rien : on l'indique une fois.
+    """
+    liens = list(affaire.liens.all())
+    racine = reglages.chemin_racine
+    partage_ok = racine is not None and accessible(racine)
+    for lien in liens:
+        lien.trouve = None
+        if partage_ok:
+            try:
+                lien.trouve = chemin_dans_racine(racine, lien.chemin).is_file()
+            except (HorsRacine, OSError):
+                lien.trouve = False
+    return {"liens": liens, "racine": racine, "partage_ok": partage_ok}
+
+
+def fichier_du_lien(request, lien):
+    """Chemin complet du fichier d'un lien, après tous les contrôles ; None
+    (avec un message) si on ne peut pas l'ouvrir."""
+    racine = Reglages.actuels().chemin_racine
+    if racine is None or not accessible(racine):
+        messages.error(request, "Partage indisponible : vérifiez qu'il est connecté.")
+        return None
+    if est_executable(lien.chemin):
+        messages.error(request, "Ce type de fichier n'est jamais ouvert par l'outil.")
+        return None
+    try:
+        chemin = chemin_dans_racine(racine, lien.chemin)
+    except HorsRacine:
+        chemin = None
+    if chemin is None or not chemin.is_file():
+        messages.error(request, f"Fichier introuvable : {lien.nom}. Utilisez « Relier ».")
+        return None
+    return chemin
+
+
+def lien_ouvrir(request, pk):
+    """Ouvre le fichier dans son application Windows (Acrobat, Word, Outlook…)."""
+    lien = get_object_or_404(Lien, pk=pk)
+    if request.method == "POST":
+        chemin = fichier_du_lien(request, lien)
+        if chemin:
+            try:
+                ouvrir(chemin)
+            except OSError as erreur:
+                messages.error(request, f"Impossible d'ouvrir le fichier : {erreur}")
+    return redirect(reverse("affaire", args=[lien.affaire_id]) + "#documents")
+
+
+def lien_montrer(request, pk):
+    """Ouvre l'Explorateur Windows sur le dossier, avec le fichier sélectionné."""
+    lien = get_object_or_404(Lien, pk=pk)
+    if request.method == "POST":
+        chemin = fichier_du_lien(request, lien)
+        if chemin:
+            try:
+                montrer(chemin)
+            except OSError as erreur:
+                messages.error(request, f"Impossible d'ouvrir le dossier : {erreur}")
+    return redirect(reverse("affaire", args=[lien.affaire_id]) + "#documents")
+
+
+def lien_retirer(request, pk):
+    """Retire le lien. Le fichier reste sur le partage."""
+    lien = get_object_or_404(Lien, pk=pk)
+    if request.method == "POST":
+        lien.delete()
+        messages.success(request, f"Lien retiré : {lien.nom} (le fichier reste sur le partage).")
+    return redirect(reverse("affaire", args=[lien.affaire_id]) + "#documents")
+
+
+def dossiers_des_entreprises(affaire, racine):
+    """Dossiers existants des entreprises de l'affaire (raccourcis de l'explorateur)."""
+    resultat = []
+    entreprises = Entreprise.objects.filter(interventions__affaire=affaire).exclude(dossier="").distinct()
+    for entreprise in entreprises.order_by("nom"):
+        try:
+            if accessible(chemin_dans_racine(racine, entreprise.dossier)):
+                resultat.append((entreprise.nom, entreprise.dossier))
+        except HorsRacine:
+            continue
+    return resultat
+
+
+def explorateur(request, pk):
+    """Explorateur intégré : parcourir le partage et lier des fichiers à l'affaire.
+
+    Paramètres : « d » = dossier courant (relatif à la racine) ; « relier » =
+    identifiant d'un lien introuvable à faire pointer vers un autre fichier.
+    On ne remonte jamais au-dessus de la racine, et on ne fait que lister.
+    """
+    affaire = get_object_or_404(Affaire, pk=pk)
+    fiche = reverse("affaire", args=[pk]) + "#documents"
+    racine = Reglages.actuels().chemin_racine
+    if racine is None:
+        messages.error(request, "Réglez d'abord la racine des documents.")
+        return redirect("reglages")
+    if not accessible(racine):
+        messages.error(request, f"Partage indisponible ({racine}) : vérifiez qu'il est connecté.")
+        return redirect(fiche)
+
+    a_relier = None
+    if request.GET.get("relier") or request.POST.get("relier"):
+        a_relier = get_object_or_404(Lien, pk=request.GET.get("relier") or request.POST.get("relier"), affaire=affaire)
+
+    if request.method == "POST":
+        return lier_fichiers(request, affaire, racine, a_relier, fiche)
+
+    raccourcis = dossiers_des_entreprises(affaire, racine)
+    courant = request.GET.get("d")
+    if courant is None:
+        # Point de départ : l'ancien dossier du lien à relier, sinon le dossier
+        # de l'entreprise s'il n'y en a qu'une, sinon la racine.
+        if a_relier:
+            courant = a_relier.dossier_relatif
+        elif len(raccourcis) == 1:
+            courant = raccourcis[0][1]
+        else:
+            courant = ""
+    courant = courant.strip().strip("/")
+    try:
+        dossier = chemin_dans_racine(racine, courant) if courant else racine
+        noms_dossiers, fichiers = lister(dossier)
+    except (HorsRacine, OSError):
+        if courant:
+            messages.error(request, f"Dossier introuvable : {courant}. Retour à la racine.")
+        courant, dossier = "", racine
+        try:
+            noms_dossiers, fichiers = lister(racine)
+        except OSError:
+            messages.error(request, f"Partage illisible ({racine}) : vérifiez qu'il est connecté.")
+            return redirect(fiche)
+
+    deja_lies = set(affaire.liens.values_list("chemin", flat=True))
+    prefixe = f"{courant}/" if courant else ""
+    for fichier in fichiers:
+        fichier["chemin"] = prefixe + fichier["nom"]
+        fichier["modifie"] = datetime.fromtimestamp(fichier["modifie"], tz=tz.utc)
+        fichier["deja_lie"] = fichier["chemin"] in deja_lies
+        fichier["executable"] = est_executable(fichier["nom"])
+
+    # Fil d'Ariane : « Bâtiment › OTIS › 2026 », chaque étape cliquable.
+    ariane = [(racine.name or str(racine), "")]
+    morceaux = []
+    for morceau in courant.split("/") if courant else []:
+        morceaux.append(morceau)
+        ariane.append((morceau, "/".join(morceaux)))
+
+    return render(
+        request,
+        "suivi/explorateur.html",
+        {
+            "affaire": affaire,
+            "a_relier": a_relier,
+            "courant": courant,
+            "ariane": ariane,
+            "parent": "/".join(courant.split("/")[:-1]) if courant else None,
+            "raccourcis": raccourcis,
+            "dossiers": [{"nom": nom, "chemin": prefixe + nom} for nom in noms_dossiers],
+            "fichiers": fichiers,
+            "fiche": fiche,
+        },
+    )
+
+
+def lier_fichiers(request, affaire, racine, a_relier, fiche):
+    """Enregistre les fichiers cochés dans l'explorateur. Chaque chemin reçu est
+    revérifié : dans la racine, fichier existant, pas un exécutable."""
+    valides = []
+    for chemin in request.POST.getlist("fichiers"):
+        try:
+            complet = chemin_dans_racine(racine, chemin)
+            if complet.is_file() and not est_executable(complet.name):
+                valides.append(relatif(racine, complet))
+        except (HorsRacine, OSError, ValueError):
+            continue
+
+    if a_relier:
+        if not valides:
+            messages.error(request, "Choisissez le fichier à relier.")
+            return redirect(f"{reverse('explorateur', args=[affaire.pk])}?relier={a_relier.pk}")
+        if affaire.liens.filter(chemin=valides[0]).exclude(pk=a_relier.pk).exists():
+            a_relier.delete()  # ce fichier était déjà lié : on garde un seul lien
+        else:
+            a_relier.chemin = valides[0]
+            a_relier.save(update_fields=["chemin"])
+        messages.success(request, f"Lien rétabli : {valides[0].rsplit('/', 1)[-1]}")
+        return redirect(fiche)
+
+    nouveaux = 0
+    for chemin in valides:
+        _, cree = Lien.objects.get_or_create(affaire=affaire, chemin=chemin)
+        nouveaux += cree
+    if nouveaux:
+        s = "s" if nouveaux > 1 else ""
+        messages.success(request, f"{nouveaux} fichier{s} lié{s} à l'affaire.")
+    else:
+        messages.info(request, "Aucun nouveau fichier lié.")
+    return redirect(fiche)

@@ -62,6 +62,58 @@
   <p><a href="{% url 'entreprise_creer' %}?next={{ request.get_full_path|urlencode }}">Créer une entreprise dans l'annuaire</a></p>
 </details>
 
+{# --- Documents : liens vers les fichiers du partage --------------------- #}
+
+<h2 id="documents">Documents</h2>
+{% if documents.liens and not documents.partage_ok %}
+<p class="message error">
+  {% if documents.racine %}Partage indisponible ({{ documents.racine }}) : les documents ne peuvent pas être ouverts pour l'instant.
+  {% else %}La racine des documents n'est pas réglée. <a href="{% url 'reglages' %}">Réglages</a>{% endif %}
+</p>
+{% endif %}
+{% if documents.liens %}
+<table>
+  <tbody>
+    {% for lien in documents.liens %}
+    <tr{% if lien.trouve is False %} class="introuvable"{% endif %}>
+      <td>
+        {% if lien.trouve %}
+        <form method="post" action="{% url 'lien_ouvrir' lien.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="lien" title="Ouvrir dans son application">{{ lien.nom }}</button>
+        </form>
+        {% else %}
+        <span>{{ lien.nom }}</span>{% if lien.trouve is False %} <small>· introuvable</small>{% endif %}
+        {% endif %}
+        <div><small>{{ lien.dossier|default:"racine" }} · ajouté le {{ lien.ajoute_le|date:"d/m/Y" }}</small></div>
+      </td>
+      <td><span class="actions">
+        {% if lien.trouve %}
+        <form method="post" action="{% url 'lien_montrer' lien.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="lien" title="Ouvrir l'Explorateur sur ce fichier">Dossier</button>
+        </form>
+        {% elif lien.trouve is False %}
+        <a href="{% url 'explorateur' affaire.pk %}?relier={{ lien.pk }}">Relier</a>
+        {% endif %}
+        <form method="post" action="{% url 'lien_retirer' lien.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="lien" title="Retire le lien ; le fichier reste sur le partage">Retirer</button>
+        </form>
+      </span></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>Aucun document lié.</p>
+{% endif %}
+{% if documents.partage_ok %}
+<p><a href="{% url 'explorateur' affaire.pk %}" role="button">Lier des fichiers</a></p>
+{% elif not documents.racine %}
+<p><small>Pour lier des fichiers, réglez d'abord la racine des documents dans les <a href="{% url 'reglages' %}">Réglages</a>.</small></p>
+{% endif %}
+
 {# --- Actions ------------------------------------------------------------ #}
 
 <h2 id="actions">Actions</h2>
