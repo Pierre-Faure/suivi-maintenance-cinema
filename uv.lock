@@ -35,7 +35,7 @@ wheels = [
 ]
 
 [[package]]
-name = "suivi-affaires-cinema"
+name = "suivi-maintenance-cinema"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

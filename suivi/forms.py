@@ -18,7 +18,7 @@ def champ_date():
 class EmailSouple(forms.EmailField):
     """Champ email qui accepte aussi une adresse copiée depuis Outlook.
 
-    « Jean Dupont <jean.dupont@otis.fr> » devient « jean.dupont@otis.fr ».
+    « Jean Dupont <jean.dupont@example.com> » devient « jean.dupont@example.com ».
     """
 
     def to_python(self, value):

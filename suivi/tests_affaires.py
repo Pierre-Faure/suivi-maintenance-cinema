@@ -248,9 +248,9 @@ class EntrepriseDepuisAffaireTests(Connecte):
 
 class EmailSoupleTests(TestCase):
     def test_adresse_copiee_depuis_outlook(self):
-        form = EntrepriseForm({"nom": "Otis", "email": "Jean Dupont <jean.dupont@otis.fr>"})
+        form = EntrepriseForm({"nom": "Otis", "email": "Jean Dupont <jean.dupont@example.com>"})
         self.assertTrue(form.is_valid())
-        self.assertEqual(form.cleaned_data["email"], "jean.dupont@otis.fr")
+        self.assertEqual(form.cleaned_data["email"], "jean.dupont@example.com")
 
     def test_adresse_invalide_message_en_francais(self):
         form = EntrepriseForm({"nom": "Otis", "email": "jean.dupont"})

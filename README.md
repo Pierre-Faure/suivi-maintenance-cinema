@@ -7,9 +7,28 @@ entreprises, chantiers, vérifications) et ce qu'il doit relancer.
 Outil personnel : un seul utilisateur, sur son PC. Objectif : savoir en moins
 d'une minute où en est chaque affaire et ce qu'il y a à faire aujourd'hui.
 
-**État :** MVP en cours de finalisation : vue d'ensemble, affaires (entreprises,
-actions, journal, documents liés ou importés), annuaire, historique et recherche, lanceur
-avec sauvegarde et mises à jour.
+**État :** MVP terminé : vue d'ensemble, affaires (entreprises, actions, journal,
+documents liés ou importés), annuaire, historique et recherche, lanceur avec
+sauvegarde et mises à jour. Conçu pour Windows.
+
+Questions, idées, problèmes : ouvrez une [issue](https://github.com/Pierre-Faure/suivi-maintenance-cinema/issues).
+
+## Installation sur un poste
+
+Prérequis sous Windows, sans droits administrateur : [Git](https://git-scm.com/) et
+[uv](https://docs.astral.sh/uv/). uv installe lui-même Python 3.14.
+
+```powershell
+git clone --branch prod https://github.com/Pierre-Faure/suivi-maintenance-cinema.git C:\suivi-affaires
+cd C:\suivi-affaires
+uv sync
+uv run python manage.py migrate
+uv run python manage.py createsuperuser
+```
+
+Puis créer sur le bureau un raccourci vers `lancer.cmd` (Propriétés → Exécuter :
+« Réduite »), le lancer, et régler la racine des documents dans la page Réglages.
+Choisir un dossier hors de OneDrive.
 
 ## Pile
 
@@ -21,7 +40,7 @@ Aucune ressource externe à l'exécution : tout est livré avec l'application.
 Prérequis sous Windows (sans droits administrateur) : Git, [uv](https://docs.astral.sh/uv/), VS Code.
 
 ```powershell
-git clone https://github.com/<compte>/suivi-maintenance-cinema.git
+git clone https://github.com/Pierre-Faure/suivi-maintenance-cinema.git
 cd suivi-maintenance-cinema
 uv sync                                   # installe Python 3.14 et les dépendances
 uv run python manage.py migrate
@@ -61,9 +80,8 @@ L'application n'écoute que sur le poste lui-même ; la clé secrète est créé
 git push origin main:prod      # mettre en production l'état actuel de main
 ```
 
-Accès des postes au dépôt privé : une **clé de déploiement** en lecture seule par
-poste (GitHub → Settings → Deploy keys), sans compte personnel. Une clé se révoque
-d'un clic.
+Le dépôt est public : les postes le clonent en HTTPS et se mettent à jour sans
+identifiant. La branche `prod` est protégée contre les réécritures et la suppression.
 
 ## Données
 
@@ -74,6 +92,11 @@ Tout est dans un seul dossier, `data/` par défaut (modifiable avec `DJANGO_DATA
   (il suffit alors de se reconnecter) ;
 - `sauvegardes/` : les copies de la base faites à chaque lancement ;
 - `lanceur.log` : le journal des lancements.
+
+Ce dossier n'est pas versionné : un `git pull` ne le touche pas. Sauvegarder
+l'outil, c'est copier ce dossier.
+
+## Documents
 
 Les documents (devis, factures…) restent sur le partage réseau : l'outil n'en
 garde que des liens, relatifs à la **racine des documents** réglée dans la page
@@ -94,8 +117,6 @@ l'affaire. Rien n'est jamais écrasé : un nom déjà pris reçoit « (2) », et
 identique déjà présent dans ce dossier (même empreinte SHA-256) est lié sans être
 recopié. Seul le dossier de l'année peut être créé.
 
-Ce dossier n'est pas versionné. Sauvegarder l'outil, c'est copier ce dossier.
-
 ## Réglages
 
 | Variable | Rôle | Défaut |
@@ -105,3 +126,7 @@ Ce dossier n'est pas versionné. Sauvegarder l'outil, c'est copier ce dossier.
 | `DJANGO_SECRET_KEY` | Clé secrète imposée | lue ou créée dans le dossier de données |
 | `DJANGO_ALLOWED_HOSTS` | Noms acceptés, séparés par des virgules | `127.0.0.1,localhost` |
 | `DJANGO_LOG_LEVEL` | Niveau des journaux | `INFO` |
+
+## Licence
+
+[MIT](LICENSE) © 2026 Pierre Faure
