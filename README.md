@@ -30,6 +30,8 @@ Puis créer sur le bureau un raccourci vers `lancer.cmd` (Propriétés → Exéc
 « Réduite »), le lancer, et régler la racine des documents dans la page Réglages.
 Choisir un dossier hors de OneDrive.
 
+Guide pas à pas, avec solutions de repli et dépannage : [docs/installation.md](docs/installation.md).
+
 ## Pile
 
 Python 3.14 · Django 5.2 LTS · SQLite (WAL) · Waitress · WhiteNoise · Pico.css.
